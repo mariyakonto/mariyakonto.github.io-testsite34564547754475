@@ -96,23 +96,6 @@
             border-radius: 50%;
             transition: transform 5s cubic-bezier(0.25, 0.1, 0.25, 1); /* Slower spin */
         }
-        .wheel-segment {
-            position: absolute;
-            width: 50%;
-            height: 50%;
-            transform-origin: 100% 100%;
-            left: 0;
-            top: 0;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            /* Clip path to make pie slices */
-            clip-path: polygon(0 0, 100% 0, 100% 100%); 
-            /* Note: This CSS-only clip-path approach for segments is tricky without skew. 
-               Using conic-gradient background + absolute positioned icons is easier for visual,
-               but rotation logic needs to match. */
-        }
-        /* Simplified Wheel Approach: Conic Gradient + Icons rotated */
         .wheel-bg {
             width: 100%;
             height: 100%;
@@ -869,19 +852,17 @@
                 document.getElementById('landing-page').style.display = 'flex';
             }
             
-            // Generate Wheel Icons on Load
             generateWheelIcons();
-            // Init Scratch
             initScratchCard();
         };
 
         function loadState() {
-            const saved = localStorage.getItem('vg_gambling_data_v5'); // New version key
+            const saved = localStorage.getItem('vg_gambling_data_v6'); 
             if (saved) state = JSON.parse(saved);
         }
 
         function saveState() {
-            localStorage.setItem('vg_gambling_data_v5', JSON.stringify(state));
+            localStorage.setItem('vg_gambling_data_v6', JSON.stringify(state));
             updateUI();
         }
 
@@ -909,7 +890,6 @@
         function openModal(id) {
             document.getElementById(id).classList.add('active');
             if(id === 'wheel-modal') {
-                 // Reset wheel visual
                  document.getElementById('wheel-spinner').style.transform = `rotate(0deg)`;
             }
             if(id === 'slots-modal') resetSlots();
@@ -918,6 +898,7 @@
             if(id === 'race-modal') resetRace();
             if(id === 'blackjack-modal') resetBlackjackUI();
             if(id === 'scratch-modal') resetScratch();
+            if(id === 'poker-modal') resetPokerUI();
             
             setTimeout(() => lucide.createIcons(), 50);
         }
@@ -966,7 +947,7 @@
             location.reload();
         }
         function resetData() {
-            localStorage.removeItem('vg_gambling_data_v5');
+            localStorage.removeItem('vg_gambling_data_v6');
             location.reload();
         }
         function showDashboard() {
@@ -1026,13 +1007,11 @@
             alert(`Suksess! ${itemCount} premier er pakket og sendt til ${school}.`);
             
             closeModal('claim-prize-modal');
-            document.getElementById('claim-school').value = ''; // Reset input
+            document.getElementById('claim-school').value = ''; 
         }
 
-        // --- WHEEL GAME (DOM BASED) ---
+        // --- WHEEL GAME ---
         let isSpinning = false;
-        // 8 Segments. Each is 45deg.
-        // Icons: mapped to Lucide names or unicode for display
         const wheelPrizes = [
             { name: "Energidrikk", icon: "cup-soda", color: "#f97316" }, 
             { name: "MacBook Air", icon: "laptop", color: "#ef4444" }, 
@@ -1046,14 +1025,13 @@
 
         function generateWheelIcons() {
             const spinner = document.getElementById('wheel-spinner');
-            // Remove old icons (keep bg)
             const oldIcons = spinner.querySelectorAll('.wheel-icon');
             oldIcons.forEach(el => el.remove());
             
             wheelPrizes.forEach((prize, i) => {
                 const el = document.createElement('div');
                 el.className = 'wheel-icon';
-                el.style.transform = `rotate(${i * 45 + 22.5}deg)`; // Center of segment
+                el.style.transform = `rotate(${i * 45 + 22.5}deg)`; 
                 el.innerHTML = `<i data-lucide="${prize.icon}" class="w-8 h-8 mb-1"></i>`;
                 spinner.appendChild(el);
             });
@@ -1069,7 +1047,6 @@
 
             const spinner = document.getElementById('wheel-spinner');
             
-            // Random spin: 5 full rotations + random segment
             const extraDeg = Math.floor(Math.random() * 360);
             const totalDeg = 1800 + extraDeg; 
             
@@ -1077,27 +1054,25 @@
             
             setTimeout(() => {
                 isSpinning = false;
-                // Calculate winner
-                // We rotated negative, so 0 is top.
-                // The actual rotation modulo 360 is where it stopped.
-                // But since we rotated the WHEEL, the pointer (top) points to:
                 const actualDeg = extraDeg % 360;
-                // Each segment is 45deg. 
-                // Index 0 is at 0-45 deg in CSS.
-                // If we rotate wheel -20 deg, index 0 is at -20. Pointer is at 0.
-                // Pointer is effectively at +20 deg relative to wheel start.
                 const winningIndex = Math.floor(actualDeg / 45);
                 
                 const prize = wheelPrizes[winningIndex];
                 
                 handleWin(prize.name === "MacBook Air" ? 10000 : 0, prize.name, prize.icon);
-                state.inventory.push({name: prize.name, icon: prize.icon}); // Storing icon name for inventory
+                state.inventory.push({name: prize.name, icon: prize.icon}); 
                 saveState();
                 
-            }, 5000); // Matches CSS transition time
+            }, 5000); 
         }
 
         function handleWin(amount, itemName, iconName) {
+            // FIXED: Ensure money is added
+            if (amount && amount > 0) {
+                state.balance += amount;
+                saveState();
+            }
+
             SoundEngine.playWin();
             let msg = "";
             if(amount > 0) msg = `Du vant ${amount} kr!`;
@@ -1277,14 +1252,13 @@
             }
         }
 
-        // --- CRASH GAME (FIXED) ---
+        // --- CRASH GAME ---
         let crashMultiplier = 1.00;
         let crashRunning = false;
         let crashInterval;
         let crashCanvasElement;
         let crashCtx;
 
-        // Init Crash Canvas variables when needed or globally if elements exist
         function initCrash() {
             crashCanvasElement = document.getElementById('crash-canvas');
             if(crashCanvasElement) crashCtx = crashCanvasElement.getContext('2d');
@@ -1304,7 +1278,7 @@
             btn.classList.remove('bg-yellow-500');
             btn.classList.add('bg-green-600');
             btn.disabled = false;
-            btn.onclick = playCrash; // Ensure correct handler
+            btn.onclick = playCrash; 
         }
         
         function playCrash() {
@@ -1322,7 +1296,7 @@
             const btn = document.getElementById('crash-btn');
             btn.innerText = "HOPP AV (CASH OUT)";
             btn.classList.replace('bg-green-600', 'bg-yellow-500');
-            btn.onclick = cashoutCrash; // Switch handler
+            btn.onclick = cashoutCrash; 
 
             crashCtx.beginPath();
             crashCtx.moveTo(0, crashCanvasElement.height);
@@ -1365,7 +1339,7 @@
         
         function stopCrash() { clearInterval(crashInterval); crashRunning = false; }
 
-        // --- MINES GAME (FIXED) ---
+        // --- MINES GAME ---
         let minesActive = false;
         let minesMultiplier = 1.0;
         let minesGrid = []; 
@@ -1393,7 +1367,6 @@
                 let idx = Math.floor(Math.random() * 25);
                 if(minesGrid[idx] === 0) { minesGrid[idx] = 1; placed++; }
             }
-            // Reset visuals to ensure clean slate
             for(let i=0; i<25; i++) {
                 const el = document.getElementById(`mine-${i}`);
                 el.className = "w-full h-12 bg-slate-700 rounded cursor-pointer hover:bg-slate-600 border border-slate-600 transition-colors";
@@ -1535,28 +1508,121 @@
             document.getElementById('bj-controls').classList.remove('hidden');
         }
 
-        // --- POKER (Basic with Lucide) ---
+        // --- POKER (Jacks or Better) ---
+        let pokerDeck = [], pokerHand = [], heldCards = [false,false,false,false,false], pokerStage = 'deal';
+        
+        function createPokerDeck() {
+            pokerDeck = [];
+            const suits = ['heart', 'diamond', 'club', 'spade'];
+            const vals = ['2','3','4','5','6','7','8','9','10','J','Q','K','A'];
+            for(let s of suits) {
+                for(let v of vals) {
+                    pokerDeck.push({val:v, suit:s});
+                }
+            }
+            // Shuffle
+            for(let i=pokerDeck.length-1; i>0; i--) {
+                const j = Math.floor(Math.random()*(i+1));
+                [pokerDeck[i], pokerDeck[j]] = [pokerDeck[j], pokerDeck[i]];
+            }
+        }
+
+        function resetPokerUI() {
+            pokerStage = 'deal';
+            document.getElementById('deal-btn').innerText = "DEAL (50 kr)";
+            document.getElementById('deal-btn').onclick = dealPoker;
+            document.getElementById('poker-message').innerText = "Lykke til";
+            heldCards = [false,false,false,false,false];
+            for(let i=0; i<5; i++) {
+                const c = document.getElementById(`card-${i}`);
+                c.className = "card bg-blue-800 border-2 border-white";
+                c.innerHTML = '<div class="text-blue-300 opacity-20 text-4xl">?</div>';
+            }
+        }
+
+        function drawPokerCardUI(i, card) {
+            const el = document.getElementById(`card-${i}`);
+            const color = (card.suit === 'heart' || card.suit === 'diamond') ? 'text-red-600' : 'text-black';
+            el.className = `card ${color === 'text-red-600' ? 'red' : 'black'} ${heldCards[i] ? 'held' : ''}`;
+            el.innerHTML = `<div>${card.val}</div><i data-lucide="${card.suit}" class="w-6 h-6 ${color} fill-current"></i>`;
+        }
+
         function dealPoker() {
-             if(state.balance >= 50) {
+             if(pokerStage === 'deal') {
+                 if(state.balance < 50) return alert("Tom for penger");
                  state.balance -= 50;
                  saveState();
-                 const cards = document.querySelectorAll('#poker-modal .card');
-                 cards.forEach(c => {
-                     const vals = ['A','K','Q','J','10'];
-                     const val = vals[Math.floor(Math.random()*vals.length)];
-                     const suits = ['heart', 'diamond', 'spade', 'club'];
-                     const suit = suits[Math.floor(Math.random()*suits.length)];
-                     const color = (suit === 'heart' || suit === 'diamond') ? 'text-red-600' : 'text-black';
-                     
-                     c.innerHTML = `<div>${val}</div><i data-lucide="${suit}" class="w-6 h-6 ${color} fill-current"></i>`;
-                     c.className = `card ${color === 'text-red-600' ? 'red' : 'black'}`;
-                 });
+                 
+                 createPokerDeck();
+                 pokerHand = [];
+                 heldCards = [false,false,false,false,false];
+                 for(let i=0; i<5; i++) pokerHand.push(pokerDeck.pop());
+                 
+                 pokerHand.forEach((c, i) => drawPokerCardUI(i, c));
                  lucide.createIcons();
-                 document.getElementById('poker-message').innerText = "Simulert Spill";
-             } else alert("Tom for penger");
+                 
+                 document.getElementById('deal-btn').innerText = "TREKK";
+                 document.getElementById('poker-message').innerText = "Velg kort å beholde";
+                 pokerStage = 'draw';
+             } else {
+                 // Draw
+                 for(let i=0; i<5; i++) {
+                     if(!heldCards[i]) pokerHand[i] = pokerDeck.pop();
+                 }
+                 pokerHand.forEach((c, i) => drawPokerCardUI(i, c));
+                 lucide.createIcons();
+                 
+                 const win = evaluatePokerHand(pokerHand);
+                 if(win > 0) {
+                     handleWin(win);
+                     document.getElementById('poker-message').innerText = `GEVINST: ${win} kr`;
+                 } else {
+                     SoundEngine.playLoss();
+                     document.getElementById('poker-message').innerText = "Ingen gevinst";
+                 }
+                 
+                 document.getElementById('deal-btn').innerText = "NYTT SPILL (50 kr)";
+                 pokerStage = 'deal';
+             }
         }
+
         function toggleHold(i) {
-            document.getElementById(`card-${i}`).classList.toggle('held');
+            if(pokerStage !== 'draw') return;
+            heldCards[i] = !heldCards[i];
+            const el = document.getElementById(`card-${i}`);
+            if(heldCards[i]) el.classList.add('held'); else el.classList.remove('held');
+        }
+
+        function evaluatePokerHand(hand) {
+            // Simplified logic
+            const values = ['2','3','4','5','6','7','8','9','10','J','Q','K','A'];
+            const ranks = hand.map(c => values.indexOf(c.val)).sort((a,b)=>a-b);
+            const suits = hand.map(c => c.suit);
+            
+            const isFlush = suits.every(s => s === suits[0]);
+            const isStraight = ranks.every((r,i) => i===0 || r === ranks[i-1]+1); // Rough check
+            
+            const counts = {};
+            ranks.forEach(r => counts[r] = (counts[r]||0)+1);
+            const countVals = Object.values(counts);
+            
+            if(isFlush && isStraight) return 2500; // Straight Flush
+            if(countVals.includes(4)) return 1250; // 4 of a kind
+            if(countVals.includes(3) && countVals.includes(2)) return 450; // Full House
+            if(isFlush) return 300;
+            if(isStraight) return 200;
+            if(countVals.includes(3)) return 150;
+            if(countVals.filter(x => x===2).length === 2) return 100; // 2 Pair
+            
+            // Jacks or Better
+            if(countVals.includes(2)) {
+                // Find pair rank
+                for(let r in counts) {
+                    if(counts[r] === 2 && parseInt(r) >= 9) return 50; // J(9), Q(10), K(11), A(12)
+                }
+            }
+            
+            return 0;
         }
 
 
