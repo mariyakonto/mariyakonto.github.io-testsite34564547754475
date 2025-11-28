@@ -1,0 +1,1660 @@
+<!DOCTYPE html>
+<html lang="no">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Videregående Gambling</title>
+    
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    
+    <!-- Lucide Icons -->
+    <script src="https://unpkg.com/lucide@latest"></script>
+
+    <!-- Google Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;800&display=swap" rel="stylesheet">
+
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #0f172a; /* Slate 900 */
+            color: #f8fafc;
+            overflow: hidden; 
+            user-select: none;
+        }
+
+        /* Feide Login Animation */
+        .feide-loader {
+            border: 3px solid #f3f3f3;
+            border-top: 3px solid #1f4698;
+            border-radius: 50%;
+            width: 24px;
+            height: 24px;
+            animation: spin 1s linear infinite;
+            display: none;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        .feide-success {
+            display: none;
+            color: #fff;
+            background-color: #22c55e;
+            border-radius: 50%;
+            width: 28px;
+            height: 28px;
+            align-items: center;
+            justify-content: center;
+            animation: popIn 0.3s ease-out;
+        }
+
+        @keyframes popIn {
+            0% { transform: scale(0); }
+            80% { transform: scale(1.2); }
+            100% { transform: scale(1); }
+        }
+
+        /* Modal Transitions */
+        .modal {
+            opacity: 0;
+            visibility: hidden;
+            transition: opacity 0.3s ease, visibility 0.3s ease;
+        }
+
+        .modal.active {
+            opacity: 1;
+            visibility: visible;
+        }
+
+        .modal-content {
+            transform: scale(0.95);
+            transition: transform 0.3s ease;
+        }
+
+        .modal.active .modal-content {
+            transform: scale(1);
+        }
+
+        /* DOM Wheel Styles */
+        .wheel-wrapper {
+            position: relative;
+            width: 300px;
+            height: 300px;
+            margin: 0 auto;
+            border-radius: 50%;
+            border: 4px solid #f59e0b;
+            overflow: hidden;
+            box-shadow: 0 0 20px rgba(0,0,0,0.5);
+        }
+        .wheel-spinner {
+            width: 100%;
+            height: 100%;
+            position: relative;
+            border-radius: 50%;
+            transition: transform 5s cubic-bezier(0.25, 0.1, 0.25, 1); /* Slower spin */
+        }
+        .wheel-segment {
+            position: absolute;
+            width: 50%;
+            height: 50%;
+            transform-origin: 100% 100%;
+            left: 0;
+            top: 0;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            /* Clip path to make pie slices */
+            clip-path: polygon(0 0, 100% 0, 100% 100%); 
+            /* Note: This CSS-only clip-path approach for segments is tricky without skew. 
+               Using conic-gradient background + absolute positioned icons is easier for visual,
+               but rotation logic needs to match. */
+        }
+        /* Simplified Wheel Approach: Conic Gradient + Icons rotated */
+        .wheel-bg {
+            width: 100%;
+            height: 100%;
+            border-radius: 50%;
+            background: conic-gradient(
+                #f97316 0deg 45deg, 
+                #ef4444 45deg 90deg, 
+                #3b82f6 90deg 135deg, 
+                #22c55e 135deg 180deg, 
+                #eab308 180deg 225deg, 
+                #a855f7 225deg 270deg, 
+                #ec4899 270deg 315deg, 
+                #6366f1 315deg 360deg
+            );
+        }
+        .wheel-icon {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            width: 40px; 
+            height: 140px; /* Distance from center */
+            transform-origin: bottom center;
+            display: flex;
+            flex-direction: column;
+            justify-content: flex-start;
+            align-items: center;
+            padding-top: 10px;
+            color: white;
+            font-weight: bold;
+            text-shadow: 0 1px 2px rgba(0,0,0,0.5);
+            margin-left: -20px; /* Center horizontally */
+            margin-top: -140px; /* Center vertically to top half */
+        }
+        
+        .macbook-glow {
+            animation: glow 1.5s ease-in-out infinite alternate;
+        }
+        
+        @keyframes glow {
+            from { box-shadow: 0 0 10px #fff, 0 0 20px #eab308; }
+            to { box-shadow: 0 0 20px #fff, 0 0 30px #f59e0b; }
+        }
+
+        /* Poker Card */
+        .card {
+            background: white;
+            color: black;
+            border-radius: 8px;
+            width: 60px;
+            height: 90px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            font-weight: bold;
+            font-size: 1.2rem;
+            position: relative;
+            cursor: pointer;
+            transition: transform 0.2s, border 0.2s;
+            border: 2px solid transparent;
+        }
+        .card.held {
+            border: 4px solid #f59e0b; 
+            transform: translateY(-10px);
+            box-shadow: 0 4px 6px rgba(0,0,0,0.3);
+        }
+        .card.red { color: #dc2626; }
+        .card.black { color: #000; }
+        
+        /* Scratch Card Styles */
+        .scratch-container {
+            position: relative;
+            width: 300px;
+            height: 300px;
+            margin: 0 auto;
+            border-radius: 10px;
+            overflow: hidden;
+            border: 2px solid #475569;
+        }
+        .scratch-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            grid-template-rows: repeat(3, 1fr);
+            width: 100%;
+            height: 100%;
+            background: #1e293b;
+        }
+        .scratch-cell {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border: 1px dashed #334155;
+            font-weight: bold;
+            color: white;
+            font-size: 1.2rem;
+        }
+        #scratch-canvas {
+            position: absolute;
+            top: 0;
+            left: 0;
+            cursor: crosshair;
+            touch-action: none;
+        }
+
+        /* Scrollbar hide */
+        .scrollbar-hide::-webkit-scrollbar { display: none; }
+        .scrollbar-hide { -ms-overflow-style: none; scrollbar-width: none; }
+    </style>
+</head>
+<body class="bg-slate-900 min-h-screen flex flex-col">
+
+    <!-- LANDING PAGE -->
+    <div id="landing-page" class="flex-grow flex flex-col items-center justify-center p-4">
+        <div class="text-center mb-12">
+            <h1 class="text-5xl md:text-6xl font-extrabold text-transparent bg-clip-text bg-gradient-to-r from-purple-400 to-pink-600 mb-4 animate-pulse">
+                Videregående Gambling
+            </h1>
+            <p class="text-slate-400 text-lg">Fordi stipendet varer ikke evig.</p>
+        </div>
+
+        <div class="bg-slate-800 p-8 rounded-2xl shadow-2xl border border-slate-700 w-full max-w-md text-center">
+            <h2 class="text-2xl font-bold mb-6">Start spillingen nå</h2>
+            
+            <button onclick="openModal('login-modal')" class="group relative w-full flex items-center justify-center bg-white hover:bg-gray-100 text-slate-800 font-semibold py-3 px-4 rounded-lg border border-gray-300 shadow-sm transition-all duration-200">
+                <span class="absolute left-4 flex items-center">
+                    <!-- FEIDE LOGO SVG -->
+                    <svg id="Layer_1" data-name="Layer 1" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 113.71 39" class="h-6 w-auto">
+                        <defs><style>.cls-1{fill:#1f4698;}</style></defs>
+                        <title>Horisontal_Feide</title>
+                        <rect class="cls-1" x="27.99" y="20.34" width="4.24" height="10.18"/>
+                        <polygon class="cls-1" points="18.23 23.31 13.99 23.31 13.99 34.76 4.24 34.76 4.24 20.34 0 20.34 0 35.61 0.02 35.61 0.02 39 32.23 39 32.23 34.76 18.23 34.76 18.23 23.31"/>
+                        <circle class="cls-1" cx="16.11" cy="16.53" r="2.54"/>
+                        <path class="cls-1" d="M16.11,4.24A11.87,11.87,0,0,1,28,16.1h4.25A16.11,16.11,0,0,0,0,16.1H4.25A11.87,11.87,0,0,1,16.11,4.24Z"/>
+                        <polygon points="53.32 21.59 45.61 21.59 45.61 15.48 55.7 15.48 55.7 12.07 41.98 12.07 41.98 34.75 45.61 34.75 45.61 25.01 53.32 25.01 53.32 21.59"/>
+                        <path d="M77.79,10.08a2.5,2.5,0,1,0,2.5,2.5A2.5,2.5,0,0,0,77.79,10.08Z"/>
+                        <polygon points="72.51 17.75 72.51 21.17 75.98 21.17 75.98 31.27 71.67 31.27 71.67 34.69 81.9 34.69 81.9 31.27 79.61 31.27 79.61 17.75 72.51 17.75"/>
+                        <path d="M97.52,34.69V10.46H93.89v8.83L93.65,19a4.09,4.09,0,0,0-3.31-1.64c-3.41,0-5.89,2.74-5.89,6.53v4.72c0,3.79,2.48,6.54,5.89,6.54a4.1,4.1,0,0,0,3.31-1.65l.24-.32v1.54Zm-3.65-4.6A3.34,3.34,0,0,1,91,31.7a2.83,2.83,0,0,1-2.91-3.12V23.86A2.83,2.83,0,0,1,91,20.74a3.34,3.34,0,0,1,2.88,1.65l0,0v7.64Z"/>
+                        <path d="M69.21,27.84V23.31c0-3.54-2.74-6.11-6.53-6.11s-6.54,2.57-6.54,6.11v5.58c0,3.48,2.84,6.1,6.61,6.1a6.54,6.54,0,0,0,6.11-3.72L65.5,29.83a2.75,2.75,0,0,1-2.75,1.93,2.84,2.84,0,0,1-3-2.87V27.84Zm-9.44-4.53a2.91,2.91,0,0,1,5.81,0v1.33H59.77Z"/>
+                        <path d="M113.71,27.84V23.31c0-3.54-2.75-6.11-6.54-6.11s-6.53,2.57-6.53,6.11v5.58c0,3.48,2.84,6.1,6.61,6.1a6.55,6.55,0,0,0,6.11-3.72L110,29.83a2.76,2.76,0,0,1-2.75,1.93,2.83,2.83,0,0,1-3-2.87V27.84Zm-9.44-4.53a2.91,2.91,0,0,1,5.81,0v1.33h-5.81Z"/>
+                    </svg>
+                </span>
+                Logg inn med Feide
+            </button>
+            <p class="mt-4 text-xs text-slate-500">Ikke tilknyttet Sikt eller Utdanningsdirektoratet. (Bare tulla).</p>
+        </div>
+    </div>
+
+    <!-- MAIN DASHBOARD (Hidden until login) -->
+    <div id="dashboard" class="hidden flex-col h-screen overflow-y-auto">
+        <!-- Header -->
+        <header class="bg-slate-800 border-b border-slate-700 p-4 sticky top-0 z-10">
+            <div class="max-w-7xl mx-auto flex justify-between items-center w-full">
+                <div class="flex items-center gap-2">
+                    <img src="https://www.akademiet.no/wp-content/uploads/2023/04/akademiet_nettstudier_oransje_rgb-1000x469.png" alt="Akademiet" class="h-6 md:h-10 object-contain">
+                </div>
+                
+                <div class="flex items-center gap-2 md:gap-4">
+                    <button onclick="openModal('add-funds-modal')" class="bg-green-600 hover:bg-green-500 text-white px-3 py-1.5 rounded-full text-xs md:text-sm font-bold flex items-center gap-1 transition-all">
+                        <i data-lucide="send" class="w-4 h-4"></i> Send Faktura til Skolen
+                    </button>
+                    <div class="bg-slate-900 px-4 py-1.5 rounded-full border border-slate-700 flex items-center gap-2">
+                        <i data-lucide="coins" class="text-yellow-400 w-4 h-4"></i>
+                        <span id="user-balance" class="font-mono font-bold text-green-400">0 kr</span>
+                    </div>
+                    <div class="hidden md:block text-slate-300 text-sm">
+                        <span class="text-slate-500">Elev:</span> <span id="display-username" class="font-semibold"></span>
+                    </div>
+                    <button onclick="openModal('settings-modal')" class="text-slate-400 hover:text-white transition-colors">
+                        <i data-lucide="settings" class="w-6 h-6"></i>
+                    </button>
+                </div>
+            </div>
+        </header>
+
+        <!-- Content Grid -->
+        <main class="flex-grow p-4 md:p-8 max-w-7xl mx-auto w-full">
+            
+            <h2 class="text-2xl font-bold mb-6 text-slate-200">Spillutvalg</h2>
+            <div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 md:gap-6">
+                
+                <!-- Wheel Card -->
+                <div class="bg-slate-800 rounded-xl overflow-hidden border border-slate-700 hover:border-yellow-500 transition-all cursor-pointer group shadow-lg" onclick="openModal('wheel-modal')">
+                    <div class="h-32 bg-gradient-to-br from-orange-900 to-slate-900 flex items-center justify-center relative">
+                        <i data-lucide="aperture" class="w-16 h-16 text-yellow-500 group-hover:rotate-180 transition-transform duration-700"></i>
+                    </div>
+                    <div class="p-4">
+                        <h3 class="font-bold mb-1">Akademiet Hjulet</h3>
+                        <p class="text-slate-400 text-xs">Hovedpremie: MacBook Air</p>
+                    </div>
+                </div>
+
+                <!-- Slots Card -->
+                <div class="bg-slate-800 rounded-xl overflow-hidden border border-slate-700 hover:border-purple-500 transition-all cursor-pointer group shadow-lg" onclick="openModal('slots-modal')">
+                    <div class="h-32 bg-gradient-to-br from-purple-900 to-slate-900 flex items-center justify-center relative">
+                        <div class="flex gap-2 text-white group-hover:animate-bounce">
+                            <i data-lucide="cherry" class="w-8 h-8"></i>
+                            <i data-lucide="gem" class="w-8 h-8"></i>
+                            <i data-lucide="bell" class="w-8 h-8"></i>
+                        </div>
+                    </div>
+                    <div class="p-4">
+                        <h3 class="font-bold mb-1">Lærerværelset</h3>
+                        <p class="text-slate-400 text-xs">Tre like gir storgevinst!</p>
+                    </div>
+                </div>
+
+                <!-- Poker Card -->
+                <div class="bg-slate-800 rounded-xl overflow-hidden border border-slate-700 hover:border-indigo-500 transition-all cursor-pointer group shadow-lg" onclick="openModal('poker-modal')">
+                    <div class="h-32 bg-gradient-to-br from-indigo-900 to-slate-900 flex items-center justify-center relative">
+                         <div class="flex gap-1 group-hover:scale-110 transition-transform">
+                            <div class="bg-white text-red-600 w-8 h-10 rounded flex items-center justify-center border border-red-600">
+                                <i data-lucide="heart" class="w-4 h-4 fill-red-600"></i>
+                            </div>
+                            <div class="bg-white text-black w-8 h-10 rounded flex items-center justify-center border border-black -ml-2 mt-1">
+                                <i data-lucide="spade" class="w-4 h-4 fill-black"></i>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="p-4">
+                        <h3 class="font-bold mb-1">Video Poker</h3>
+                        <p class="text-slate-400 text-xs">Jacks or Better</p>
+                    </div>
+                </div>
+
+                <!-- Blackjack Card -->
+                <div class="bg-slate-800 rounded-xl overflow-hidden border border-slate-700 hover:border-green-600 transition-all cursor-pointer group shadow-lg" onclick="openModal('blackjack-modal')">
+                    <div class="h-32 bg-gradient-to-br from-green-900 to-slate-900 flex items-center justify-center relative">
+                        <div class="text-5xl font-bold text-green-500 opacity-80 group-hover:text-green-400">21</div>
+                    </div>
+                    <div class="p-4">
+                        <h3 class="font-bold mb-1">Rektors Blackjack</h3>
+                        <p class="text-slate-400 text-xs">Slå huset uten å sprekke.</p>
+                    </div>
+                </div>
+
+                <!-- Crash Card -->
+                <div class="bg-slate-800 rounded-xl overflow-hidden border border-slate-700 hover:border-red-500 transition-all cursor-pointer group shadow-lg" onclick="openModal('crash-modal')">
+                    <div class="h-32 bg-gradient-to-br from-red-900 to-slate-900 flex items-center justify-center relative overflow-hidden">
+                        <i data-lucide="trending-up" class="w-16 h-16 text-red-500 group-hover:translate-x-2 group-hover:-translate-y-2 transition-transform"></i>
+                    </div>
+                    <div class="p-4">
+                        <h3 class="font-bold mb-1">Eksamen Crash</h3>
+                        <p class="text-slate-400 text-xs">Hopp av før det smeller!</p>
+                    </div>
+                </div>
+
+                <!-- Mines Card -->
+                <div class="bg-slate-800 rounded-xl overflow-hidden border border-slate-700 hover:border-blue-500 transition-all cursor-pointer group shadow-lg" onclick="openModal('mines-modal')">
+                    <div class="h-32 bg-gradient-to-br from-blue-900 to-slate-900 flex items-center justify-center relative">
+                        <div class="grid grid-cols-3 gap-1 opacity-80">
+                            <div class="w-4 h-4 bg-blue-500 rounded-sm"></div>
+                            <div class="w-4 h-4 bg-blue-500 rounded-sm"></div>
+                            <div class="w-4 h-4 bg-red-500 rounded-sm animate-pulse"></div>
+                            <div class="w-4 h-4 bg-blue-500 rounded-sm"></div>
+                            <div class="w-4 h-4 bg-blue-500 rounded-sm"></div>
+                            <div class="w-4 h-4 bg-blue-500 rounded-sm"></div>
+                        </div>
+                    </div>
+                    <div class="p-4">
+                        <h3 class="font-bold mb-1">Fraværsgrensa</h3>
+                        <p class="text-slate-400 text-xs">Unngå minene (anmerkning).</p>
+                    </div>
+                </div>
+
+                <!-- Horse Racing -->
+                <div class="bg-slate-800 rounded-xl overflow-hidden border border-slate-700 hover:border-amber-700 transition-all cursor-pointer group shadow-lg" onclick="openModal('race-modal')">
+                    <div class="h-32 bg-gradient-to-br from-amber-900 to-slate-900 flex items-center justify-center relative">
+                        <i data-lucide="trophy" class="w-16 h-16 text-amber-600 group-hover:animate-ping"></i>
+                    </div>
+                    <div class="p-4">
+                        <h3 class="font-bold mb-1">Gymtimen</h3>
+                        <p class="text-slate-400 text-xs">Veddemål på 60-meteren.</p>
+                    </div>
+                </div>
+
+                <!-- Roulette -->
+                <div class="bg-slate-800 rounded-xl overflow-hidden border border-slate-700 hover:border-pink-600 transition-all cursor-pointer group shadow-lg" onclick="openModal('roulette-modal')">
+                    <div class="h-32 bg-gradient-to-br from-pink-900 to-slate-900 flex items-center justify-center relative">
+                        <i data-lucide="disc" class="w-16 h-16 text-pink-500 animate-spin-slow"></i>
+                    </div>
+                    <div class="p-4">
+                        <h3 class="font-bold mb-1">Russebuss Rulett</h3>
+                        <p class="text-slate-400 text-xs">Rød, Sort eller Grønn?</p>
+                    </div>
+                </div>
+
+                <!-- Coin Flip -->
+                <div class="bg-slate-800 rounded-xl overflow-hidden border border-slate-700 hover:border-yellow-200 transition-all cursor-pointer group shadow-lg" onclick="openModal('coin-modal')">
+                    <div class="h-32 bg-gradient-to-br from-yellow-900 to-slate-900 flex items-center justify-center relative">
+                         <i data-lucide="circle-dashed" class="w-16 h-16 text-yellow-400 group-hover:rotate-180 transition-all"></i>
+                    </div>
+                    <div class="p-4">
+                        <h3 class="font-bold mb-1">Kron eller Mynt</h3>
+                        <p class="text-slate-400 text-xs">50/50 sjanse.</p>
+                    </div>
+                </div>
+
+                <!-- Scratchcard -->
+                <div class="bg-slate-800 rounded-xl overflow-hidden border border-slate-700 hover:border-teal-500 transition-all cursor-pointer group shadow-lg" onclick="openModal('scratch-modal')">
+                    <div class="h-32 bg-gradient-to-br from-teal-900 to-slate-900 flex items-center justify-center relative">
+                        <i data-lucide="ticket" class="w-16 h-16 text-teal-500"></i>
+                    </div>
+                    <div class="p-4">
+                        <h3 class="font-bold mb-1">Flakslodd</h3>
+                        <p class="text-slate-400 text-xs">Skrap frem 3 like beløp.</p>
+                    </div>
+                </div>
+
+                <!-- High Low -->
+                <div class="bg-slate-800 rounded-xl overflow-hidden border border-slate-700 hover:border-cyan-500 transition-all cursor-pointer group shadow-lg" onclick="openModal('hilow-modal')">
+                    <div class="h-32 bg-gradient-to-br from-cyan-900 to-slate-900 flex items-center justify-center relative">
+                        <i data-lucide="arrow-up-down" class="w-16 h-16 text-cyan-500"></i>
+                    </div>
+                    <div class="p-4">
+                        <h3 class="font-bold mb-1">Høyere/Lavere</h3>
+                        <p class="text-slate-400 text-xs">Gjett neste kortverdi.</p>
+                    </div>
+                </div>
+
+                <!-- Dice -->
+                <div class="bg-slate-800 rounded-xl overflow-hidden border border-slate-700 hover:border-white transition-all cursor-pointer group shadow-lg" onclick="openModal('dice-modal')">
+                    <div class="h-32 bg-gradient-to-br from-gray-700 to-slate-900 flex items-center justify-center relative">
+                        <i data-lucide="dices" class="w-16 h-16 text-white"></i>
+                    </div>
+                    <div class="p-4">
+                        <h3 class="font-bold mb-1">Terningkast 6</h3>
+                        <p class="text-slate-400 text-xs">Kast terninger for gevinst.</p>
+                    </div>
+                </div>
+
+            </div>
+
+            <!-- Inventory Section -->
+            <div class="mt-12 bg-slate-800/50 p-6 rounded-2xl border border-slate-700">
+                <div class="flex justify-between items-center mb-6">
+                    <h3 class="text-xl font-bold flex items-center gap-2">
+                        <i data-lucide="backpack" class="text-blue-400"></i>
+                        Skolesekken (Dine gevinster)
+                    </h3>
+                    <button onclick="openModal('claim-prize-modal')" class="bg-blue-600 hover:bg-blue-500 text-white text-xs px-3 py-2 rounded-lg font-bold">
+                        Send premier til skole
+                    </button>
+                </div>
+                
+                <div id="inventory-list" class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-4">
+                    <!-- Inventory items injected here -->
+                </div>
+            </div>
+
+        </main>
+    </div>
+
+    <!-- ===== MODALS ===== -->
+
+    <!-- Login Modal -->
+    <div id="login-modal" class="modal fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm p-4">
+        <div class="modal-content bg-white text-slate-900 rounded-xl shadow-2xl w-full max-w-sm overflow-hidden">
+            <div class="bg-slate-100 p-4 border-b border-slate-200 flex justify-between items-center">
+                <h3 class="font-bold text-lg text-slate-700">Logg inn med Feide</h3>
+                <button onclick="closeModal('login-modal')" class="text-slate-400 hover:text-slate-600"><i data-lucide="x" class="w-5 h-5"></i></button>
+            </div>
+            <div class="p-6">
+                <div class="mb-4 text-center">
+                    <div class="inline-block p-3 bg-blue-50 rounded-full mb-2">
+                        <svg class="w-8 h-8 text-[#1f4698]" fill="currentColor" viewBox="0 0 24 24"><path d="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z"/></svg>
+                    </div>
+                    <p class="text-sm text-slate-500">Skriv inn ditt brukernavn for å fortsette til Videregående Gambling.</p>
+                </div>
+                <form onsubmit="handleLogin(event)" class="space-y-4">
+                    <div>
+                        <label class="block text-xs font-semibold text-slate-500 uppercase mb-1">Brukernavn</label>
+                        <input type="text" id="username-input" required class="w-full px-3 py-2 border border-slate-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent" placeholder="f.eks. ola.nordmann">
+                    </div>
+                    
+                    <button type="submit" id="login-btn" class="w-full bg-[#1f4698] hover:bg-[#163475] text-white font-bold py-2 px-4 rounded transition-colors flex justify-center items-center h-10">
+                        <span class="btn-text">Logg inn</span>
+                        <div class="feide-loader"></div>
+                        <div class="feide-success"><i data-lucide="check" class="w-5 h-5"></i></div>
+                    </button>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- First Login Bonus Modal -->
+    <div id="bonus-modal" class="modal fixed inset-0 z-[60] flex items-center justify-center bg-black/90 p-4">
+        <div class="modal-content bg-gradient-to-br from-yellow-500 to-orange-600 text-white p-8 rounded-2xl shadow-2xl max-w-sm text-center">
+            <div class="mb-4 flex justify-center"><i data-lucide="gift" class="w-16 h-16 text-yellow-100"></i></div>
+            <h2 class="text-3xl font-extrabold mb-2">VELKOMSTBONUS!</h2>
+            <p class="mb-6 font-semibold">Du får 500 NOK i startstipend!</p>
+            <button onclick="closeModal('bonus-modal')" class="bg-white text-orange-600 font-bold py-3 px-8 rounded-full shadow-lg hover:bg-orange-50 transition">TAKK!</button>
+        </div>
+    </div>
+
+    <!-- Add Funds Modal (Faktura) -->
+    <div id="add-funds-modal" class="modal fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm p-4">
+        <div class="modal-content bg-slate-800 border border-slate-600 text-white rounded-xl w-full max-w-md">
+            <div class="p-4 border-b border-slate-700 flex justify-between items-center">
+                <h3 class="font-bold">Send Faktura til Skole</h3>
+                <button onclick="closeModal('add-funds-modal')" class="text-slate-400 hover:text-white"><i data-lucide="x"></i></button>
+            </div>
+            <div class="p-6 space-y-4">
+                <p class="text-sm text-slate-400">Tom for penger? Send faktura til skolen. Du bestemmer beløpet.</p>
+                <div>
+                    <label class="block text-xs font-semibold text-slate-500 uppercase mb-1">Skole</label>
+                    <input type="text" id="fund-school" class="w-full px-3 py-2 bg-slate-700 border border-slate-600 rounded text-white" placeholder="f.eks. Oslo Katedralskole">
+                </div>
+                <div>
+                    <label class="block text-xs font-semibold text-slate-500 uppercase mb-1">Lærer (Godkjenner)</label>
+                    <input type="text" id="fund-teacher" class="w-full px-3 py-2 bg-slate-700 border border-slate-600 rounded text-white" placeholder="f.eks. Per Lærer">
+                </div>
+                <div>
+                    <label class="block text-xs font-semibold text-slate-500 uppercase mb-1">Beløp (NOK)</label>
+                    <input type="number" id="fund-amount" min="1" class="w-full px-3 py-2 bg-slate-700 border border-slate-600 rounded text-white" placeholder="f.eks. 5000">
+                </div>
+                <button onclick="processFunds()" id="fund-btn" class="w-full bg-green-600 hover:bg-green-500 text-white font-bold py-2 px-4 rounded transition-colors flex justify-center items-center h-10">
+                    <span id="fund-text">Send Faktura</span>
+                    <i id="fund-spin" data-lucide="loader-2" class="animate-spin hidden"></i>
+                </button>
+                <div id="fund-success" class="hidden text-green-400 text-center text-sm font-bold mt-2">
+                    Faktura godkjent av <span id="fund-teacher-display"></span>!
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Claim Prize Modal -->
+    <div id="claim-prize-modal" class="modal fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm p-4">
+        <div class="modal-content bg-slate-800 border border-slate-600 text-white rounded-xl w-full max-w-md">
+            <div class="p-4 border-b border-slate-700 flex justify-between items-center">
+                <h3 class="font-bold">Hent Premier</h3>
+                <button onclick="closeModal('claim-prize-modal')" class="text-slate-400 hover:text-white"><i data-lucide="x"></i></button>
+            </div>
+            <div class="p-6 text-center space-y-4">
+                <i data-lucide="truck" class="w-12 h-12 text-blue-400 mx-auto"></i>
+                <p class="text-sm text-slate-400">Vi sender premiene dine direkte til skolen.</p>
+                <input type="text" id="claim-school" class="w-full px-3 py-2 bg-slate-700 border border-slate-600 rounded text-white" placeholder="Navn på skole...">
+                <button onclick="claimPrizes()" class="w-full bg-blue-600 hover:bg-blue-500 text-white font-bold py-2 rounded">Bekreft Sending</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Settings Modal -->
+    <div id="settings-modal" class="modal fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm p-4">
+        <div class="modal-content bg-slate-800 border border-slate-700 text-white rounded-xl w-full max-w-sm">
+            <div class="p-4 border-b border-slate-700 flex justify-between items-center">
+                <h3 class="font-bold">Innstillinger</h3>
+                <button onclick="closeModal('settings-modal')" class="text-slate-400 hover:text-white"><i data-lucide="x"></i></button>
+            </div>
+            <div class="p-6 space-y-4">
+                <button onclick="resetData()" class="w-full border border-red-500 text-red-500 hover:bg-red-500/10 font-bold py-2 px-4 rounded transition-colors flex items-center justify-center gap-2">
+                    <i data-lucide="trash-2" class="w-4 h-4"></i> Slett data og logg ut
+                </button>
+                <button onclick="logout()" class="w-full bg-slate-700 hover:bg-slate-600 text-white font-bold py-2 px-4 rounded transition-colors">
+                    Logg ut
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Win Modal (Generic) -->
+    <div id="win-modal" class="modal fixed inset-0 z-[70] flex items-center justify-center pointer-events-none">
+        <div class="modal-content bg-yellow-400 text-yellow-900 p-6 rounded-xl shadow-2xl transform rotate-3 border-4 border-white text-center pointer-events-auto">
+            <h2 class="text-3xl font-extrabold mb-2">GEVINST!</h2>
+            <p id="win-message" class="text-xl font-bold">Du vant!</p>
+            <button onclick="closeModal('win-modal')" class="mt-4 bg-white hover:bg-yellow-50 text-yellow-900 font-bold py-2 px-6 rounded-full shadow">Nice!</button>
+        </div>
+    </div>
+
+    <!-- ================= GAME MODALS ================= -->
+
+    <!-- Wheel Modal (Updated to DOM based for easy icons) -->
+    <div id="wheel-modal" class="modal fixed inset-0 z-50 flex items-center justify-center bg-black/90 backdrop-blur-md p-4">
+        <div class="modal-content bg-slate-800 border border-slate-600 rounded-2xl w-full max-w-lg shadow-2xl relative">
+            <button onclick="openModal('wheel-rules')" class="absolute top-4 left-4 bg-slate-700 p-2 rounded-full hover:bg-slate-600 text-xs text-slate-300 z-20">? Regler</button>
+            <button onclick="closeModal('wheel-modal')" class="absolute top-4 right-4 bg-slate-700 p-2 rounded-full hover:bg-slate-600 z-20"><i data-lucide="x" class="w-5 h-5"></i></button>
+            
+            <div class="p-8 text-center">
+                <h2 class="text-2xl font-bold mb-2 text-yellow-400">Akademiet-hjulet</h2>
+                <div class="wheel-wrapper mb-8 mt-8">
+                    <!-- Triangle Marker -->
+                    <div class="absolute top-0 left-1/2 transform -translate-x-1/2 -translate-y-2 z-10 w-0 h-0 border-l-[15px] border-l-transparent border-r-[15px] border-r-transparent border-t-[30px] border-t-white drop-shadow-md"></div>
+                    
+                    <div id="wheel-spinner" class="wheel-spinner">
+                        <div class="wheel-bg"></div>
+                        <!-- Icons will be injected here by JS -->
+                    </div>
+                </div>
+                <button id="spin-btn" onclick="spinWheel()" class="w-full bg-gradient-to-r from-yellow-500 to-orange-600 hover:from-yellow-400 hover:to-orange-500 text-white font-bold py-3 px-8 rounded-full shadow-lg text-xl">
+                    SPINN (100 kr)
+                </button>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Wheel Rules -->
+    <div id="wheel-rules" class="modal fixed inset-0 z-[60] flex items-center justify-center bg-black/60 p-4">
+        <div class="modal-content bg-slate-700 border border-slate-500 rounded-lg max-w-xs w-full p-6 text-center">
+             <h4 class="font-bold text-lg mb-2">Gevinster</h4>
+            <ul class="text-left text-sm text-slate-300 space-y-1 mb-4">
+                <li>💻 MacBook Air (0.5%)</li>
+                <li>🎧 Gaming Headset (5%)</li>
+                <li>🎒 Akademiet Sekk (10%)</li>
+                <li>✏️ Penn & Papir (30%)</li>
+                <li>🍎 Gammelt Eple (20%)</li>
+                <li>🥤 Energidrikk (34.5%)</li>
+            </ul>
+            <button onclick="closeModal('wheel-rules')" class="bg-slate-900 px-4 py-2 rounded text-sm hover:bg-slate-800">Lukk</button>
+        </div>
+    </div>
+
+    <!-- Slots Modal -->
+    <div id="slots-modal" class="modal fixed inset-0 z-50 flex items-center justify-center bg-black/90 backdrop-blur-md p-4">
+        <div class="modal-content bg-slate-900 border border-purple-600 rounded-2xl w-full max-w-lg shadow-2xl relative p-6">
+            <button onclick="closeModal('slots-modal')" class="absolute top-4 right-4 text-slate-400 hover:text-white"><i data-lucide="x"></i></button>
+            <h2 class="text-2xl font-bold mb-6 text-center text-purple-400">Lærerværelset Slots</h2>
+            
+            <div class="flex justify-center gap-2 mb-8 bg-slate-800 p-4 rounded-xl border border-slate-700">
+                <div id="reel-1" class="slot-reel w-20 h-24 md:w-24 md:h-32 rounded border-2 border-slate-600 flex items-center justify-center overflow-hidden bg-slate-700"></div>
+                <div id="reel-2" class="slot-reel w-20 h-24 md:w-24 md:h-32 rounded border-2 border-slate-600 flex items-center justify-center overflow-hidden bg-slate-700"></div>
+                <div id="reel-3" class="slot-reel w-20 h-24 md:w-24 md:h-32 rounded border-2 border-slate-600 flex items-center justify-center overflow-hidden bg-slate-700"></div>
+            </div>
+
+            <button onclick="spinSlots()" class="w-full bg-purple-600 hover:bg-purple-500 text-white font-bold py-4 rounded-xl shadow-lg text-xl border-b-4 border-purple-800 active:border-0 active:translate-y-1">
+                SPINN (50 kr)
+            </button>
+            <div class="mt-4 text-center text-xs text-slate-500">3 like gir 500kr. 3xMacBook gir 5000kr!</div>
+        </div>
+    </div>
+
+    <!-- Poker Modal -->
+    <div id="poker-modal" class="modal fixed inset-0 z-50 flex items-center justify-center bg-black/90 backdrop-blur-md p-2">
+        <div class="modal-content bg-[#2f4335] border-4 border-[#3e5746] rounded-2xl w-full max-w-3xl shadow-2xl relative flex flex-col max-h-[90vh]">
+            <div class="p-4 bg-[#233328] flex justify-between items-center rounded-t-xl border-b border-[#3e5746]">
+                <h2 class="text-xl font-bold text-yellow-400">VIDEO POKER</h2>
+                <button onclick="closeModal('poker-modal')" class="text-white"><i data-lucide="x"></i></button>
+            </div>
+            <div class="flex-grow p-4 md:p-8 flex flex-col items-center justify-center bg-[radial-gradient(ellipse_at_center,_var(--tw-gradient-stops))] from-[#3a5241] to-[#233328]">
+                <div id="poker-message" class="h-8 mb-4 text-yellow-300 font-bold text-lg text-center">LYKKE TIL</div>
+                <div class="grid grid-cols-5 gap-2 md:gap-4 mb-8 w-full max-w-2xl">
+                    <div id="card-0" class="card" onclick="toggleHold(0)"></div>
+                    <div id="card-1" class="card" onclick="toggleHold(1)"></div>
+                    <div id="card-2" class="card" onclick="toggleHold(2)"></div>
+                    <div id="card-3" class="card" onclick="toggleHold(3)"></div>
+                    <div id="card-4" class="card" onclick="toggleHold(4)"></div>
+                </div>
+                <button id="deal-btn" onclick="dealPoker()" class="bg-yellow-500 hover:bg-yellow-400 text-yellow-900 font-extrabold text-xl py-3 px-10 rounded shadow-lg">DEAL (50 kr)</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Crash Modal -->
+    <div id="crash-modal" class="modal fixed inset-0 z-50 flex items-center justify-center bg-black/90 backdrop-blur-md p-4">
+        <div class="modal-content bg-slate-900 border border-slate-700 rounded-2xl w-full max-w-2xl p-6">
+            <button onclick="closeModal('crash-modal')" class="absolute top-4 right-4 text-slate-400 hover:text-white"><i data-lucide="x"></i></button>
+            <h2 class="text-2xl font-bold mb-4 text-red-500">Eksamen Crash</h2>
+            
+            <div class="relative w-full h-64 bg-slate-800 rounded-lg mb-4 overflow-hidden">
+                <canvas id="crash-canvas" class="w-full h-full"></canvas>
+                <div class="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 text-5xl font-bold text-white font-mono" id="crash-multiplier">1.00x</div>
+            </div>
+
+            <button id="crash-btn" onclick="playCrash()" class="w-full bg-green-600 hover:bg-green-500 text-white font-bold py-4 rounded text-xl">
+                START EKSAMEN (100 kr)
+            </button>
+        </div>
+    </div>
+
+    <!-- Mines Modal -->
+    <div id="mines-modal" class="modal fixed inset-0 z-50 flex items-center justify-center bg-black/90 p-4">
+        <div class="modal-content bg-slate-900 border border-slate-700 rounded-2xl p-6 w-full max-w-md">
+            <div class="flex justify-between items-center mb-4">
+                <h2 class="text-xl font-bold text-blue-400">Fraværsgrensa (Mines)</h2>
+                <button onclick="closeModal('mines-modal')" class="text-slate-400"><i data-lucide="x"></i></button>
+            </div>
+            <div id="mines-grid" class="grid grid-cols-5 gap-2 mb-4">
+                <!-- Generated by JS -->
+            </div>
+            <div class="flex justify-between items-center bg-slate-800 p-3 rounded">
+                <div class="text-sm">Neste: <span id="mines-next-reward" class="text-green-400 font-bold">1.2x</span></div>
+                <button id="mines-cashout" onclick="cashoutMines()" class="bg-green-600 px-4 py-1 rounded text-sm font-bold opacity-50 cursor-not-allowed" disabled>Hent Gevinst</button>
+            </div>
+            <button id="mines-start" onclick="startMines()" class="w-full mt-4 bg-blue-600 hover:bg-blue-500 py-2 rounded font-bold">Start (50 kr)</button>
+        </div>
+    </div>
+
+    <!-- Blackjack Modal -->
+    <div id="blackjack-modal" class="modal fixed inset-0 z-50 flex items-center justify-center bg-black/90 p-4">
+        <div class="modal-content bg-[#1a472a] border-4 border-[#2d5e3e] rounded-xl w-full max-w-2xl p-6 text-center">
+            <button onclick="closeModal('blackjack-modal')" class="absolute top-4 right-4 text-white/50 hover:text-white"><i data-lucide="x"></i></button>
+            <h2 class="text-2xl font-bold text-green-100 mb-6">Rektors Blackjack</h2>
+            
+            <div class="mb-2 text-green-200/50 text-sm uppercase">Rektor (Dealer)</div>
+            <div id="bj-dealer-cards" class="flex justify-center gap-2 mb-8 h-24"></div>
+            
+            <div class="mb-2 text-green-200/50 text-sm uppercase">Deg</div>
+            <div id="bj-player-cards" class="flex justify-center gap-2 mb-8 h-24"></div>
+            
+            <div id="bj-message" class="text-xl font-bold text-yellow-400 mb-4 h-8"></div>
+            
+            <div id="bj-controls" class="flex justify-center gap-4">
+                <button onclick="startBlackjack()" class="bg-yellow-500 text-yellow-900 font-bold py-2 px-8 rounded shadow">DEAL (100 kr)</button>
+            </div>
+            <div id="bj-actions" class="hidden flex justify-center gap-4">
+                <button onclick="bjHit()" class="bg-blue-600 hover:bg-blue-500 text-white font-bold py-2 px-6 rounded">KORT</button>
+                <button onclick="bjStand()" class="bg-red-600 hover:bg-red-500 text-white font-bold py-2 px-6 rounded">STÅ</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Coin Flip Modal -->
+    <div id="coin-modal" class="modal fixed inset-0 z-50 flex items-center justify-center bg-black/90 p-4">
+        <div class="modal-content bg-slate-800 border border-slate-600 rounded-xl p-8 text-center max-w-sm w-full">
+            <button onclick="closeModal('coin-modal')" class="absolute top-4 right-4 text-slate-400"><i data-lucide="x"></i></button>
+            <h2 class="text-2xl font-bold mb-8">Kron eller Mynt</h2>
+            <div id="coin-display" class="w-32 h-32 bg-yellow-400 rounded-full mx-auto mb-8 flex items-center justify-center shadow-xl border-4 border-yellow-200">
+                <i data-lucide="help-circle" class="w-16 h-16 text-yellow-900"></i>
+            </div>
+            <div class="grid grid-cols-2 gap-4">
+                <button onclick="playCoin('kron')" class="bg-slate-700 hover:bg-slate-600 p-4 rounded font-bold border border-slate-500">KRON</button>
+                <button onclick="playCoin('mynt')" class="bg-slate-700 hover:bg-slate-600 p-4 rounded font-bold border border-slate-500">MYNT</button>
+            </div>
+            <p class="mt-4 text-xs text-slate-500">Innsats: 50 kr. Vinn: 100 kr.</p>
+        </div>
+    </div>
+
+    <!-- Scratch Modal -->
+    <div id="scratch-modal" class="modal fixed inset-0 z-50 flex items-center justify-center bg-black/90 p-4">
+        <div class="modal-content bg-slate-800 border border-slate-600 rounded-xl p-6 text-center max-w-sm w-full">
+            <button onclick="closeModal('scratch-modal')" class="absolute top-4 right-4 text-slate-400"><i data-lucide="x"></i></button>
+            <h2 class="text-xl font-bold mb-4">Flakslodd</h2>
+            <p class="text-xs text-slate-400 mb-2">Skrap bort det grå feltet!</p>
+            
+            <div class="scratch-container mb-4">
+                <div id="scratch-grid" class="scratch-grid">
+                    <!-- Grid generated by JS -->
+                </div>
+                <canvas id="scratch-canvas" width="300" height="300"></canvas>
+            </div>
+
+            <button onclick="buyScratch()" id="scratch-btn" class="w-full bg-teal-600 hover:bg-teal-500 font-bold py-2 rounded">Kjøp Lodd (50 kr)</button>
+        </div>
+    </div>
+
+    <!-- Roulette Modal (Simple) -->
+    <div id="roulette-modal" class="modal fixed inset-0 z-50 flex items-center justify-center bg-black/90 p-4">
+        <div class="modal-content bg-slate-800 border border-slate-600 rounded-xl p-6 text-center max-w-md w-full">
+            <button onclick="closeModal('roulette-modal')" class="absolute top-4 right-4 text-slate-400"><i data-lucide="x"></i></button>
+            <h2 class="text-xl font-bold mb-2">Russebuss Rulett</h2>
+            <div id="roulette-wheel" class="w-full h-12 bg-slate-700 mb-6 rounded overflow-hidden flex items-center justify-center relative border border-slate-500">
+                <div class="text-2xl font-mono" id="roulette-result">RULLER...</div>
+            </div>
+            <div class="grid grid-cols-3 gap-2">
+                <button onclick="playRoulette('red')" class="bg-red-600 hover:bg-red-500 py-3 rounded font-bold">RØD (2x)</button>
+                <button onclick="playRoulette('green')" class="bg-green-600 hover:bg-green-500 py-3 rounded font-bold">GRØNN (14x)</button>
+                <button onclick="playRoulette('black')" class="bg-slate-900 hover:bg-slate-950 py-3 rounded font-bold border border-slate-700">SORT (2x)</button>
+            </div>
+            <p class="mt-4 text-xs text-slate-500">Innsats: 100 kr.</p>
+        </div>
+    </div>
+
+    <!-- Dice Modal -->
+    <div id="dice-modal" class="modal fixed inset-0 z-50 flex items-center justify-center bg-black/90 p-4">
+        <div class="modal-content bg-slate-800 border border-slate-600 rounded-xl p-8 text-center max-w-xs w-full">
+            <button onclick="closeModal('dice-modal')" class="absolute top-4 right-4 text-slate-400"><i data-lucide="x"></i></button>
+            <h2 class="text-2xl font-bold mb-6">Terningkast</h2>
+            <div id="dice-visual" class="flex justify-center gap-4 mb-8">
+                <div class="w-16 h-16 bg-white rounded flex items-center justify-center text-4xl text-black font-bold border-2 border-slate-400">
+                    <i data-lucide="help-circle" class="w-8 h-8"></i>
+                </div>
+            </div>
+            <button onclick="rollDice()" id="dice-btn" class="w-full bg-indigo-600 hover:bg-indigo-500 py-2 rounded font-bold">Kast (50 kr)</button>
+            <p class="mt-2 text-xs text-slate-400">Kast 6 for å vinne 150 kr.</p>
+        </div>
+    </div>
+
+     <!-- Race Modal -->
+     <div id="race-modal" class="modal fixed inset-0 z-50 flex items-center justify-center bg-black/90 p-4">
+        <div class="modal-content bg-slate-800 border border-slate-600 rounded-xl p-6 w-full max-w-lg">
+            <button onclick="closeModal('race-modal')" class="absolute top-4 right-4 text-slate-400"><i data-lucide="x"></i></button>
+            <h2 class="text-xl font-bold mb-4 text-center">Gymtime-løpet</h2>
+            
+            <div class="space-y-4 mb-6" id="race-track">
+                <!-- Horses -->
+            </div>
+
+            <div class="grid grid-cols-3 gap-2">
+                <button onclick="startRace(0)" class="bg-red-600 py-2 rounded text-sm">Hest 1 (Rød)</button>
+                <button onclick="startRace(1)" class="bg-blue-600 py-2 rounded text-sm">Hest 2 (Blå)</button>
+                <button onclick="startRace(2)" class="bg-green-600 py-2 rounded text-sm">Hest 3 (Grønn)</button>
+            </div>
+            <p class="mt-2 text-center text-xs text-slate-400">Innsats: 100 kr. Vinn: 300 kr.</p>
+        </div>
+    </div>
+
+    <!-- HiLow Modal -->
+    <div id="hilow-modal" class="modal fixed inset-0 z-50 flex items-center justify-center bg-black/90 p-4">
+        <div class="modal-content bg-slate-800 border border-slate-600 rounded-xl p-8 text-center max-w-xs w-full">
+            <button onclick="closeModal('hilow-modal')" class="absolute top-4 right-4 text-slate-400"><i data-lucide="x"></i></button>
+            <h2 class="text-xl font-bold mb-4">Høyere / Lavere</h2>
+            
+            <div class="bg-white text-black w-24 h-36 rounded mx-auto mb-4 flex flex-col items-center justify-center text-4xl font-bold border-4 border-slate-200" id="hilow-card">
+                7
+            </div>
+            
+            <div class="grid grid-cols-2 gap-4">
+                <button onclick="playHiLow('high')" class="bg-cyan-600 py-3 rounded font-bold hover:bg-cyan-500">Høyere</button>
+                <button onclick="playHiLow('low')" class="bg-purple-600 py-3 rounded font-bold hover:bg-purple-500">Lavere</button>
+            </div>
+            <p class="mt-4 text-xs text-slate-500">Gjett neste kort (A=1, K=13).</p>
+        </div>
+    </div>
+
+
+    <script>
+        // --- SOUND ENGINE (RESTORED MP3s) ---
+        const SoundEngine = {
+            sounds: {
+                win: new Audio('https://www.soundjay.com/misc/sounds/bell-ringing-05.mp3'),
+                coin: new Audio('https://www.soundjay.com/misc/sounds/coins-in-hand-2.mp3'),
+                spin: new Audio('https://www.soundjay.com/button/sounds/button-30.mp3'),
+                loss: new Audio('https://www.soundjay.com/misc/sounds/fail-trombone-01.mp3')
+            },
+            playWin: function() {
+                try { this.sounds.win.currentTime = 0; this.sounds.win.play(); } catch(e){ console.log("Sound err", e); }
+            },
+            playCoin: function() {
+                try { this.sounds.coin.currentTime = 0; this.sounds.coin.play(); } catch(e){ console.log("Sound err", e); }
+            },
+            playSpin: function() {
+                try { this.sounds.spin.currentTime = 0; this.sounds.spin.play(); } catch(e){ console.log("Sound err", e); }
+            },
+            playLoss: function() {
+                try { this.sounds.loss.currentTime = 0; this.sounds.loss.play(); } catch(e){ console.log("Sound err", e); }
+            }
+        };
+
+        // --- STATE ---
+        const DEFAULT_BALANCE = 0; 
+        let state = {
+            username: '',
+            balance: DEFAULT_BALANCE,
+            inventory: [],
+            isLoggedIn: false,
+            hasClaimedBonus: false
+        };
+
+        window.onload = function() {
+            lucide.createIcons();
+            loadState();
+            if (state.isLoggedIn) {
+                showDashboard();
+            } else {
+                document.getElementById('landing-page').style.display = 'flex';
+            }
+            
+            // Generate Wheel Icons on Load
+            generateWheelIcons();
+            // Init Scratch
+            initScratchCard();
+        };
+
+        function loadState() {
+            const saved = localStorage.getItem('vg_gambling_data_v5'); // New version key
+            if (saved) state = JSON.parse(saved);
+        }
+
+        function saveState() {
+            localStorage.setItem('vg_gambling_data_v5', JSON.stringify(state));
+            updateUI();
+        }
+
+        function updateUI() {
+            document.getElementById('display-username').textContent = state.username;
+            document.getElementById('user-balance').innerText = state.balance + ' kr'; 
+            renderInventory();
+        }
+
+        function renderInventory() {
+            const container = document.getElementById('inventory-list');
+            if (state.inventory.length === 0) {
+                container.innerHTML = `<div class="col-span-full text-center py-8 text-slate-500 bg-slate-800/50 rounded-lg border border-slate-800 border-dashed">Sekken er tom. Spill på hjulet for å vinne!</div>`;
+                return;
+            }
+            container.innerHTML = state.inventory.map(item => `
+                <div class="bg-slate-700 p-3 rounded border border-slate-600 text-center text-sm shadow">
+                    <div class="text-2xl mb-1">${item.icon}</div>
+                    <div class="font-semibold text-slate-200 truncate">${item.name}</div>
+                </div>
+            `).join('');
+        }
+
+        // --- MODAL SYSTEM ---
+        function openModal(id) {
+            document.getElementById(id).classList.add('active');
+            if(id === 'wheel-modal') {
+                 // Reset wheel visual
+                 document.getElementById('wheel-spinner').style.transform = `rotate(0deg)`;
+            }
+            if(id === 'slots-modal') resetSlots();
+            if(id === 'crash-modal') resetCrash();
+            if(id === 'mines-modal') resetMines();
+            if(id === 'race-modal') resetRace();
+            if(id === 'blackjack-modal') resetBlackjackUI();
+            if(id === 'scratch-modal') resetScratch();
+            
+            setTimeout(() => lucide.createIcons(), 50);
+        }
+        function closeModal(id) {
+            document.getElementById(id).classList.remove('active');
+            if(id === 'crash-modal') stopCrash();
+        }
+
+        // --- AUTH & FUNDS ---
+        function handleLogin(e) {
+            e.preventDefault();
+            const username = document.getElementById('username-input').value;
+            const btn = document.getElementById('login-btn');
+            btn.querySelector('.btn-text').style.display = 'none';
+            btn.querySelector('.feide-loader').style.display = 'block';
+            
+            setTimeout(() => {
+                btn.querySelector('.feide-loader').style.display = 'none';
+                btn.querySelector('.feide-success').style.display = 'flex';
+                btn.classList.replace('bg-[#1f4698]', 'bg-green-500');
+                SoundEngine.playCoin();
+                
+                setTimeout(() => {
+                    state.username = username;
+                    state.isLoggedIn = true;
+                    if (!state.hasClaimedBonus) {
+                        state.balance += 500; 
+                        state.hasClaimedBonus = true;
+                        saveState();
+                        setTimeout(() => openModal('bonus-modal'), 500);
+                    }
+                    saveState();
+                    closeModal('login-modal');
+                    showDashboard();
+                    
+                    btn.querySelector('.btn-text').style.display = 'block';
+                    btn.querySelector('.feide-success').style.display = 'none';
+                    btn.classList.replace('bg-green-500', 'bg-[#1f4698]');
+                }, 800);
+            }, 1000);
+        }
+
+        function logout() {
+            state.isLoggedIn = false;
+            saveState();
+            location.reload();
+        }
+        function resetData() {
+            localStorage.removeItem('vg_gambling_data_v5');
+            location.reload();
+        }
+        function showDashboard() {
+            document.getElementById('landing-page').style.display = 'none';
+            document.getElementById('dashboard').style.display = 'flex';
+            document.getElementById('dashboard').classList.remove('hidden');
+            updateUI();
+        }
+
+        function processFunds() {
+            const school = document.getElementById('fund-school').value;
+            const teacher = document.getElementById('fund-teacher').value;
+            const amount = parseInt(document.getElementById('fund-amount').value);
+            
+            if(!school || !teacher) return alert("Fyll ut skole og lærer!");
+            if(!amount || amount <= 0) return alert("Skriv inn et gyldig beløp!");
+
+            const btn = document.getElementById('fund-btn');
+            document.getElementById('fund-text').style.display = 'none';
+            document.getElementById('fund-spin').style.display = 'block';
+            
+            setTimeout(() => {
+                state.balance += amount; 
+                saveState();
+                SoundEngine.playWin();
+                
+                document.getElementById('fund-spin').style.display = 'none';
+                document.getElementById('fund-text').style.display = 'block';
+                document.getElementById('fund-teacher-display').textContent = teacher;
+                document.getElementById('fund-success').classList.remove('hidden');
+                
+                setTimeout(() => {
+                    document.getElementById('fund-success').classList.add('hidden');
+                    closeModal('add-funds-modal');
+                    document.getElementById('fund-amount').value = '';
+                }, 2000);
+            }, 1500);
+        }
+
+        // --- CLAIM PRIZES ---
+        function claimPrizes() {
+            const school = document.getElementById('claim-school').value;
+            
+            if(!school) return alert("Skriv inn navnet på skolen!");
+            
+            if(state.inventory.length === 0) {
+                return alert("Sekken din er tom! Du har ingenting å sende.");
+            }
+
+            const itemCount = state.inventory.length;
+            
+            // Clear inventory
+            state.inventory = [];
+            saveState();
+            
+            SoundEngine.playWin();
+            alert(`Suksess! ${itemCount} premier er pakket og sendt til ${school}.`);
+            
+            closeModal('claim-prize-modal');
+            document.getElementById('claim-school').value = ''; // Reset input
+        }
+
+        // --- WHEEL GAME (DOM BASED) ---
+        let isSpinning = false;
+        // 8 Segments. Each is 45deg.
+        // Icons: mapped to Lucide names or unicode for display
+        const wheelPrizes = [
+            { name: "Energidrikk", icon: "cup-soda", color: "#f97316" }, 
+            { name: "MacBook Air", icon: "laptop", color: "#ef4444" }, 
+            { name: "Gammelt Eple", icon: "apple", color: "#3b82f6" }, 
+            { name: "Penn & Papir", icon: "pencil", color: "#22c55e" }, 
+            { name: "Akademiet Sekk", icon: "backpack", color: "#eab308" }, 
+            { name: "Energidrikk", icon: "cup-soda", color: "#a855f7" }, 
+            { name: "Gaming Headset", icon: "headphones", color: "#ec4899" }, 
+            { name: "Penn & Papir", icon: "pencil", color: "#6366f1" } 
+        ];
+
+        function generateWheelIcons() {
+            const spinner = document.getElementById('wheel-spinner');
+            // Remove old icons (keep bg)
+            const oldIcons = spinner.querySelectorAll('.wheel-icon');
+            oldIcons.forEach(el => el.remove());
+            
+            wheelPrizes.forEach((prize, i) => {
+                const el = document.createElement('div');
+                el.className = 'wheel-icon';
+                el.style.transform = `rotate(${i * 45 + 22.5}deg)`; // Center of segment
+                el.innerHTML = `<i data-lucide="${prize.icon}" class="w-8 h-8 mb-1"></i>`;
+                spinner.appendChild(el);
+            });
+            lucide.createIcons();
+        }
+
+        function spinWheel() {
+            if(isSpinning || state.balance < 100) return;
+            state.balance -= 100;
+            saveState();
+            isSpinning = true;
+            SoundEngine.playSpin();
+
+            const spinner = document.getElementById('wheel-spinner');
+            
+            // Random spin: 5 full rotations + random segment
+            const extraDeg = Math.floor(Math.random() * 360);
+            const totalDeg = 1800 + extraDeg; 
+            
+            spinner.style.transform = `rotate(-${totalDeg}deg)`;
+            
+            setTimeout(() => {
+                isSpinning = false;
+                // Calculate winner
+                // We rotated negative, so 0 is top.
+                // The actual rotation modulo 360 is where it stopped.
+                // But since we rotated the WHEEL, the pointer (top) points to:
+                const actualDeg = extraDeg % 360;
+                // Each segment is 45deg. 
+                // Index 0 is at 0-45 deg in CSS.
+                // If we rotate wheel -20 deg, index 0 is at -20. Pointer is at 0.
+                // Pointer is effectively at +20 deg relative to wheel start.
+                const winningIndex = Math.floor(actualDeg / 45);
+                
+                const prize = wheelPrizes[winningIndex];
+                
+                handleWin(prize.name === "MacBook Air" ? 10000 : 0, prize.name, prize.icon);
+                state.inventory.push({name: prize.name, icon: prize.icon}); // Storing icon name for inventory
+                saveState();
+                
+            }, 5000); // Matches CSS transition time
+        }
+
+        function handleWin(amount, itemName, iconName) {
+            SoundEngine.playWin();
+            let msg = "";
+            if(amount > 0) msg = `Du vant ${amount} kr!`;
+            else msg = `Du vant ${itemName}!`;
+            
+            document.getElementById('win-message').innerText = msg;
+            openModal('win-modal');
+        }
+
+        // --- SLOTS GAME ---
+        const slotIcons = [
+            '<i data-lucide="cherry" class="w-8 h-8 md:w-12 md:h-12 text-red-500"></i>',
+            '<i data-lucide="gem" class="w-8 h-8 md:w-12 md:h-12 text-blue-400"></i>',
+            '<i data-lucide="bell" class="w-8 h-8 md:w-12 md:h-12 text-yellow-400"></i>',
+            '<i data-lucide="grape" class="w-8 h-8 md:w-12 md:h-12 text-purple-500"></i>',
+            '<i data-lucide="laptop" class="w-8 h-8 md:w-12 md:h-12 text-gray-200"></i>'
+        ];
+        
+        function resetSlots() {
+            ['reel-1','reel-2','reel-3'].forEach(id => {
+                document.getElementById(id).innerHTML = slotIcons[0];
+            });
+            lucide.createIcons();
+        }
+
+        function spinSlots() {
+            if(state.balance < 50) return alert("Tom for penger");
+            state.balance -= 50;
+            saveState();
+
+            let spins = 0;
+            const interval = setInterval(() => {
+                spins++;
+                ['reel-1','reel-2','reel-3'].forEach(id => {
+                     document.getElementById(id).innerHTML = slotIcons[Math.floor(Math.random()*5)];
+                });
+                lucide.createIcons();
+                
+                if(spins > 20) {
+                    clearInterval(interval);
+                    const r1_idx = Math.floor(Math.random()*5);
+                    const r2_idx = Math.random() > 0.7 ? r1_idx : Math.floor(Math.random()*5);
+                    const r3_idx = Math.random() > 0.8 ? r1_idx : Math.floor(Math.random()*5);
+
+                    document.getElementById('reel-1').innerHTML = slotIcons[r1_idx];
+                    document.getElementById('reel-2').innerHTML = slotIcons[r2_idx];
+                    document.getElementById('reel-3').innerHTML = slotIcons[r3_idx];
+                    lucide.createIcons();
+
+                    if(r1_idx === r2_idx && r2_idx === r3_idx) {
+                        let win = 500;
+                        if(r1_idx === 4) win = 5000;
+                        if(r1_idx === 1) win = 1000; 
+                        handleWin(win);
+                    } else {
+                        SoundEngine.playLoss();
+                    }
+                }
+            }, 100);
+        }
+
+        // --- SCRATCH CARD ---
+        let scratchCtx;
+        let scratchCanvas = document.getElementById('scratch-canvas');
+        let scratchValues = [];
+        let isScratching = false;
+
+        function initScratchCard() {
+             scratchCanvas = document.getElementById('scratch-canvas');
+             scratchCtx = scratchCanvas.getContext('2d');
+             
+             const start = () => isScratching = true;
+             const end = () => {
+                 isScratching = false;
+                 checkScratchWin();
+             };
+             const move = (e) => {
+                 if(!isScratching) return;
+                 e.preventDefault();
+                 const rect = scratchCanvas.getBoundingClientRect();
+                 const x = (e.clientX || e.touches[0].clientX) - rect.left;
+                 const y = (e.clientY || e.touches[0].clientY) - rect.top;
+                 scratch(x, y);
+             };
+
+             scratchCanvas.addEventListener('mousedown', start);
+             scratchCanvas.addEventListener('touchstart', start);
+             window.addEventListener('mouseup', end);
+             window.addEventListener('touchend', end);
+             scratchCanvas.addEventListener('mousemove', move);
+             scratchCanvas.addEventListener('touchmove', move);
+        }
+
+        function resetScratch() {
+             const btn = document.getElementById('scratch-btn');
+             btn.disabled = false;
+             btn.classList.remove('opacity-50');
+             btn.innerText = "Kjøp Lodd (50 kr)";
+             btn.onclick = buyScratch; 
+             
+             scratchCanvas.style.pointerEvents = 'none'; 
+             scratchCtx.globalCompositeOperation = 'source-over';
+             scratchCtx.fillStyle = '#94a3b8'; 
+             scratchCtx.fillRect(0,0,300,300);
+             
+             scratchCtx.fillStyle = '#334155';
+             scratchCtx.font = "bold 30px Arial";
+             scratchCtx.textAlign = "center";
+             scratchCtx.fillText("SKRAP HER", 150, 150);
+             
+             document.getElementById('scratch-grid').innerHTML = "";
+        }
+
+        function buyScratch() {
+             if(state.balance < 50) return alert("Tom for penger");
+             state.balance -= 50;
+             saveState();
+             
+             const btn = document.getElementById('scratch-btn');
+             btn.disabled = true;
+             btn.classList.add('opacity-50');
+             btn.innerText = "Skrap i vei!";
+             
+             scratchCanvas.style.pointerEvents = 'auto'; 
+             
+             const grid = document.getElementById('scratch-grid');
+             grid.innerHTML = '';
+             const amounts = [10, 50, 50, 50, 100, 100, 500];
+             scratchValues = [];
+             
+             const isWin = Math.random() < 0.2;
+             const winVal = amounts[Math.floor(Math.random()*amounts.length)];
+             
+             let cells = [];
+             if(isWin) cells = [winVal, winVal, winVal];
+             while(cells.length < 9) cells.push(amounts[Math.floor(Math.random()*amounts.length)]);
+             if(!isWin) cells.sort(() => Math.random() - 0.5);
+             
+             cells.forEach(val => {
+                 grid.innerHTML += `<div class="scratch-cell">${val} kr</div>`;
+             });
+             scratchValues = cells;
+        }
+
+        function scratch(x, y) {
+            scratchCtx.globalCompositeOperation = 'destination-out';
+            scratchCtx.beginPath();
+            scratchCtx.arc(x, y, 20, 0, Math.PI * 2);
+            scratchCtx.fill();
+        }
+
+        function checkScratchWin() {
+            const imageData = scratchCtx.getImageData(0,0,300,300);
+            let clearPixels = 0;
+            for(let i=3; i<imageData.data.length; i+=4) {
+                if(imageData.data[i] === 0) clearPixels++;
+            }
+            const percent = (clearPixels / (300*300)) * 100;
+            
+            if(percent > 40 && document.getElementById('scratch-btn').disabled) {
+                 scratchCtx.clearRect(0,0,300,300);
+                 const counts = {};
+                 scratchValues.forEach(v => counts[v] = (counts[v] || 0) + 1);
+                 let win = 0;
+                 for(let v in counts) {
+                     if(counts[v] >= 3) win = Math.max(win, parseInt(v));
+                 }
+                 
+                 if(win > 0) handleWin(win); else SoundEngine.playLoss();
+                 
+                 const btn = document.getElementById('scratch-btn');
+                 btn.innerText = "Spill igjen";
+                 btn.disabled = false;
+                 btn.classList.remove('opacity-50');
+                 btn.onclick = resetScratch; 
+                 scratchCanvas.style.pointerEvents = 'none';
+            }
+        }
+
+        // --- CRASH GAME (FIXED) ---
+        let crashMultiplier = 1.00;
+        let crashRunning = false;
+        let crashInterval;
+        let crashCanvasElement;
+        let crashCtx;
+
+        // Init Crash Canvas variables when needed or globally if elements exist
+        function initCrash() {
+            crashCanvasElement = document.getElementById('crash-canvas');
+            if(crashCanvasElement) crashCtx = crashCanvasElement.getContext('2d');
+        }
+        
+        function resetCrash() {
+            initCrash();
+            crashCanvasElement.width = crashCanvasElement.offsetWidth;
+            crashCanvasElement.height = crashCanvasElement.offsetHeight;
+            crashCtx.clearRect(0,0,crashCanvasElement.width, crashCanvasElement.height);
+            const display = document.getElementById('crash-multiplier');
+            display.innerText = "1.00x";
+            display.className = "absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 text-5xl font-bold text-white font-mono";
+            
+            const btn = document.getElementById('crash-btn');
+            btn.innerText = "START EKSAMEN (100 kr)";
+            btn.classList.remove('bg-yellow-500');
+            btn.classList.add('bg-green-600');
+            btn.disabled = false;
+            btn.onclick = playCrash; // Ensure correct handler
+        }
+        
+        function playCrash() {
+            if(state.balance < 100) return alert("Tom for penger");
+            state.balance -= 100;
+            saveState();
+            
+            initCrash();
+            crashRunning = true;
+            crashMultiplier = 1.00;
+            let x = 0; 
+            let y = crashCanvasElement.height;
+            const crashPoint = 1 + Math.random() * 5; 
+
+            const btn = document.getElementById('crash-btn');
+            btn.innerText = "HOPP AV (CASH OUT)";
+            btn.classList.replace('bg-green-600', 'bg-yellow-500');
+            btn.onclick = cashoutCrash; // Switch handler
+
+            crashCtx.beginPath();
+            crashCtx.moveTo(0, crashCanvasElement.height);
+
+            crashInterval = setInterval(() => {
+                crashMultiplier += 0.01;
+                document.getElementById('crash-multiplier').innerText = crashMultiplier.toFixed(2) + "x";
+                
+                x += 1;
+                y -= 0.5; 
+                crashCtx.lineTo(x, y);
+                crashCtx.strokeStyle = "#ef4444";
+                crashCtx.lineWidth = 3;
+                crashCtx.stroke();
+
+                if(crashMultiplier >= crashPoint) {
+                    crash(false);
+                }
+            }, 50);
+        }
+        
+        function cashoutCrash() {
+            if(!crashRunning) return;
+            clearInterval(crashInterval);
+            crashRunning = false;
+            const win = Math.floor(100 * crashMultiplier);
+            handleWin(win);
+            resetCrash();
+        }
+        
+        function crash(userAction) {
+             clearInterval(crashInterval);
+             crashRunning = false;
+             SoundEngine.playLoss();
+             const display = document.getElementById('crash-multiplier');
+             display.innerText = "STRØK! (CRASH)";
+             display.classList.add('text-red-500');
+             setTimeout(resetCrash, 2000);
+        }
+        
+        function stopCrash() { clearInterval(crashInterval); crashRunning = false; }
+
+        // --- MINES GAME (FIXED) ---
+        let minesActive = false;
+        let minesMultiplier = 1.0;
+        let minesGrid = []; 
+
+        function resetMines() {
+            const grid = document.getElementById('mines-grid');
+            grid.innerHTML = '';
+            for(let i=0; i<25; i++) {
+                grid.innerHTML += `<div id="mine-${i}" class="w-full h-12 bg-slate-700 rounded cursor-pointer hover:bg-slate-600 border border-slate-600 transition-colors" onclick="clickMine(${i})"></div>`;
+            }
+            document.getElementById('mines-start').disabled = false;
+            document.getElementById('mines-cashout').disabled = true;
+            document.getElementById('mines-cashout').classList.add('opacity-50');
+            minesActive = false;
+        }
+        function startMines() {
+            if(state.balance < 50) return alert("Tom for penger");
+            state.balance -= 50;
+            saveState();
+            minesActive = true;
+            minesMultiplier = 1.0;
+            minesGrid = Array(25).fill(0);
+            let placed = 0;
+            while(placed < 5) {
+                let idx = Math.floor(Math.random() * 25);
+                if(minesGrid[idx] === 0) { minesGrid[idx] = 1; placed++; }
+            }
+            // Reset visuals to ensure clean slate
+            for(let i=0; i<25; i++) {
+                const el = document.getElementById(`mine-${i}`);
+                el.className = "w-full h-12 bg-slate-700 rounded cursor-pointer hover:bg-slate-600 border border-slate-600 transition-colors";
+                el.innerHTML = "";
+            }
+            document.getElementById('mines-start').disabled = true;
+        }
+        function clickMine(idx) {
+            if(!minesActive) return;
+            const el = document.getElementById(`mine-${idx}`);
+            if(el.classList.contains('bg-slate-800')) return; 
+
+            if(minesGrid[idx] === 1) {
+                el.classList.remove('bg-slate-700');
+                el.classList.add('bg-red-500');
+                el.innerHTML = '<i data-lucide="bomb" class="w-6 h-6 mx-auto mt-3 text-white"></i>';
+                lucide.createIcons();
+                SoundEngine.playLoss();
+                minesActive = false;
+                setTimeout(() => { alert("Du fikk anmerkning (Tapte)!"); resetMines(); }, 500);
+            } else {
+                el.classList.remove('bg-slate-700');
+                el.classList.add('bg-green-600');
+                minesMultiplier += 0.2;
+                document.getElementById('mines-next-reward').innerText = minesMultiplier.toFixed(1) + "x";
+                SoundEngine.playCoin();
+                document.getElementById('mines-cashout').disabled = false;
+                document.getElementById('mines-cashout').classList.remove('opacity-50');
+            }
+        }
+        function cashoutMines() {
+            if(!minesActive) return;
+            const win = Math.floor(50 * minesMultiplier);
+            handleWin(win);
+            minesActive = false;
+            resetMines();
+        }
+
+        // --- BLACKJACK ---
+        let bjDeck = [], bjPlayerHand = [], bjDealerHand = [], bjActive = false;
+
+        function resetBlackjackUI() {
+            document.getElementById('bj-dealer-cards').innerHTML = '';
+            document.getElementById('bj-player-cards').innerHTML = '';
+            document.getElementById('bj-message').innerText = '';
+            document.getElementById('bj-controls').classList.remove('hidden');
+            document.getElementById('bj-actions').classList.add('hidden');
+        }
+
+        function getCard() {
+            const vals = ['2','3','4','5','6','7','8','9','10','J','Q','K','A'];
+            const suits = ['♠','♥','♦','♣'];
+            const val = vals[Math.floor(Math.random()*vals.length)];
+            const suit = suits[Math.floor(Math.random()*suits.length)];
+            let num = parseInt(val);
+            if(['J','Q','K'].includes(val)) num = 10;
+            if(val === 'A') num = 11;
+            return { val, suit, num, color: (suit === '♥' || suit === '♦') ? 'text-red-500' : 'text-black' };
+        }
+
+        function drawCardUI(card, containerId) {
+            const el = document.createElement('div');
+            el.className = `w-16 h-24 bg-white rounded flex flex-col items-center justify-center font-bold border-2 border-gray-300 ${card.color}`;
+            let suitIcon = '';
+            if(card.suit === '♥') suitIcon = '<i data-lucide="heart" class="w-4 h-4 fill-red-500"></i>';
+            if(card.suit === '♦') suitIcon = '<i data-lucide="diamond" class="w-4 h-4 fill-red-500"></i>';
+            if(card.suit === '♠') suitIcon = '<i data-lucide="spade" class="w-4 h-4 fill-black"></i>';
+            if(card.suit === '♣') suitIcon = '<i data-lucide="club" class="w-4 h-4 fill-black"></i>';
+            
+            el.innerHTML = `<span>${card.val}</span><div class="mt-1">${suitIcon}</div>`;
+            document.getElementById(containerId).appendChild(el);
+            lucide.createIcons();
+        }
+
+        function calcHand(hand) {
+            let sum = hand.reduce((a,b) => a + b.num, 0);
+            let aces = hand.filter(c => c.val === 'A').length;
+            while(sum > 21 && aces > 0) { sum -= 10; aces--; }
+            return sum;
+        }
+
+        function startBlackjack() {
+            if(state.balance < 100) return alert("Tom for penger");
+            state.balance -= 100;
+            saveState();
+            
+            resetBlackjackUI();
+            bjPlayerHand = [getCard(), getCard()];
+            bjDealerHand = [getCard()]; 
+            
+            bjPlayerHand.forEach(c => drawCardUI(c, 'bj-player-cards'));
+            bjDealerHand.forEach(c => drawCardUI(c, 'bj-dealer-cards'));
+            
+            document.getElementById('bj-controls').classList.add('hidden');
+            document.getElementById('bj-actions').classList.remove('hidden');
+            bjActive = true;
+            
+            if(calcHand(bjPlayerHand) === 21) bjStand(); 
+        }
+
+        function bjHit() {
+            if(!bjActive) return;
+            const card = getCard();
+            bjPlayerHand.push(card);
+            drawCardUI(card, 'bj-player-cards');
+            if(calcHand(bjPlayerHand) > 21) {
+                bjActive = false;
+                document.getElementById('bj-message').innerText = "BUST! (Over 21)";
+                document.getElementById('bj-actions').classList.add('hidden');
+                document.getElementById('bj-controls').classList.remove('hidden');
+                SoundEngine.playLoss();
+            }
+        }
+
+        function bjStand() {
+            if(!bjActive) return;
+            bjActive = false;
+            while(calcHand(bjDealerHand) < 17) {
+                const c = getCard();
+                bjDealerHand.push(c);
+                drawCardUI(c, 'bj-dealer-cards');
+            }
+            
+            const pScore = calcHand(bjPlayerHand);
+            const dScore = calcHand(bjDealerHand);
+            
+            let msg = "";
+            let win = 0;
+            
+            if(dScore > 21) { msg = "Dealer Busted! Du vant!"; win = 200; }
+            else if(pScore > dScore) { msg = "Du vant!"; win = 200; }
+            else if(pScore === dScore) { msg = "Uavgjort (Push)"; win = 100; }
+            else { msg = "Huset vant."; }
+            
+            document.getElementById('bj-message').innerText = msg;
+            if(win > 0) handleWin(win); else SoundEngine.playLoss();
+            
+            document.getElementById('bj-actions').classList.add('hidden');
+            document.getElementById('bj-controls').classList.remove('hidden');
+        }
+
+        // --- POKER (Basic with Lucide) ---
+        function dealPoker() {
+             if(state.balance >= 50) {
+                 state.balance -= 50;
+                 saveState();
+                 const cards = document.querySelectorAll('#poker-modal .card');
+                 cards.forEach(c => {
+                     const vals = ['A','K','Q','J','10'];
+                     const val = vals[Math.floor(Math.random()*vals.length)];
+                     const suits = ['heart', 'diamond', 'spade', 'club'];
+                     const suit = suits[Math.floor(Math.random()*suits.length)];
+                     const color = (suit === 'heart' || suit === 'diamond') ? 'text-red-600' : 'text-black';
+                     
+                     c.innerHTML = `<div>${val}</div><i data-lucide="${suit}" class="w-6 h-6 ${color} fill-current"></i>`;
+                     c.className = `card ${color === 'text-red-600' ? 'red' : 'black'}`;
+                 });
+                 lucide.createIcons();
+                 document.getElementById('poker-message').innerText = "Simulert Spill";
+             } else alert("Tom for penger");
+        }
+        function toggleHold(i) {
+            document.getElementById(`card-${i}`).classList.toggle('held');
+        }
+
+
+        // --- SIMPLE GAMES ---
+        function playCoin(choice) {
+            if(state.balance < 50) return alert("Tom for penger");
+            state.balance -= 50;
+            saveState();
+            const res = Math.random() > 0.5 ? 'kron' : 'mynt';
+            document.getElementById('coin-display').innerHTML = res === 'kron' 
+                ? '<span class="text-4xl font-bold">K</span>' 
+                : '<span class="text-4xl font-bold">M</span>';
+            if(choice === res) handleWin(100); else SoundEngine.playLoss();
+        }
+
+        function rollDice() {
+             if(state.balance < 50) return alert("Tom for penger");
+            state.balance -= 50;
+            saveState();
+            
+            const btn = document.getElementById('dice-btn');
+            btn.disabled = true; // Prevent spam
+            
+            const roll = Math.ceil(Math.random()*6);
+            document.getElementById('dice-visual').innerHTML = `<div class="w-16 h-16 bg-white rounded flex items-center justify-center text-4xl text-black font-bold border-2 border-slate-400">${roll}</div>`;
+            
+            if(roll === 6) handleWin(150); else SoundEngine.playLoss();
+            
+            setTimeout(() => btn.disabled = false, 1000);
+        }
+
+        function playRoulette(choice) {
+            if(state.balance < 100) return alert("Tom for penger");
+            state.balance -= 100;
+            saveState();
+            document.getElementById('roulette-result').innerText = "RULLER...";
+            setTimeout(() => {
+                const r = Math.random();
+                let color = 'black';
+                if(r < 0.05) color = 'green';
+                else if(r < 0.5) color = 'red';
+                
+                document.getElementById('roulette-result').innerText = color.toUpperCase();
+                document.getElementById('roulette-result').className = `text-2xl font-mono text-${color === 'black' ? 'white' : color + '-500'}`;
+                
+                if(choice === color) {
+                    if(color === 'green') handleWin(1400);
+                    else handleWin(200);
+                } else SoundEngine.playLoss();
+            }, 1000);
+        }
+
+        function resetRace() {
+            document.getElementById('race-track').innerHTML = [0,1,2].map(i => 
+                `<div class="relative w-full h-8 bg-slate-900 rounded-full overflow-hidden border border-slate-700">
+                    <div id="horse-${i}" class="absolute left-0 top-0 h-full w-8 bg-${['red','blue','green'][i]}-600 rounded-full transition-all duration-100 flex items-center justify-center text-xs">
+                        <i data-lucide="move-right" class="text-white w-4 h-4"></i>
+                    </div>
+                </div>`
+            ).join('');
+            lucide.createIcons();
+        }
+        function startRace(choice) {
+             if(state.balance < 100) return alert("Tom for penger");
+            state.balance -= 100;
+            saveState();
+            
+            let pos = [0,0,0];
+            const interval = setInterval(() => {
+                for(let i=0; i<3; i++) {
+                    pos[i] += Math.random() * 5;
+                    document.getElementById(`horse-${i}`).style.left = Math.min(pos[i], 92) + '%';
+                    if(pos[i] >= 92) {
+                        clearInterval(interval);
+                        if(i === choice) handleWin(300); else SoundEngine.playLoss();
+                    }
+                }
+            }, 100);
+        }
+
+        function playHiLow(choice) {
+             if(state.balance < 50) return alert("Tom for penger");
+            state.balance -= 50;
+            saveState();
+            
+            const curr = parseInt(document.getElementById('hilow-card').getAttribute('data-val') || 7);
+            const next = Math.ceil(Math.random() * 13);
+            document.getElementById('hilow-card').innerText = next;
+            document.getElementById('hilow-card').setAttribute('data-val', next);
+            
+            if((choice === 'high' && next > curr) || (choice === 'low' && next < curr)) {
+                handleWin(100);
+            } else if (next === curr) {
+                handleWin(50);
+            } else {
+                SoundEngine.playLoss();
+            }
+        }
+    </script>
+</body>
+</html>
