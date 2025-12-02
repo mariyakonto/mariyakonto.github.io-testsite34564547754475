@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Videregående Gambling</title>
+    <title>Videregående Prosjekt (PvP)</title>
     
     <!-- Tailwind CSS -->
     <script src="https://cdn.tailwindcss.com"></script>
@@ -13,6 +13,9 @@
 
     <!-- Google Fonts -->
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;800&display=swap" rel="stylesheet">
+    
+    <!-- GUN.JS ONLY (No SEA/Encryption to avoid CSP errors) -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/gun/0.2020.1235/gun.min.js"></script>
 
     <style>
         body {
@@ -23,7 +26,12 @@
             user-select: none;
         }
 
-        /* Feide Login Animation */
+        /* Animations */
+        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+        @keyframes popIn { 0% { transform: scale(0); } 80% { transform: scale(1.2); } 100% { transform: scale(1); } }
+        @keyframes pulse-glow { 0%, 100% { box-shadow: 0 0 10px #ef4444; } 50% { box-shadow: 0 0 25px #f87171; } }
+        @keyframes blur-spin { 0% { filter: blur(0); transform: translateY(0); } 50% { filter: blur(2px); transform: translateY(-10px); } 100% { filter: blur(0); transform: translateY(0); } }
+
         .feide-loader {
             border: 3px solid #f3f3f3;
             border-top: 3px solid #1f4698;
@@ -33,12 +41,6 @@
             animation: spin 1s linear infinite;
             display: none;
         }
-
-        @keyframes spin {
-            0% { transform: rotate(0deg); }
-            100% { transform: rotate(360deg); }
-        }
-
         .feide-success {
             display: none;
             color: #fff;
@@ -51,164 +53,39 @@
             animation: popIn 0.3s ease-out;
         }
 
-        @keyframes popIn {
-            0% { transform: scale(0); }
-            80% { transform: scale(1.2); }
-            100% { transform: scale(1); }
-        }
-
         /* Modal Transitions */
-        .modal {
-            opacity: 0;
-            visibility: hidden;
-            transition: opacity 0.3s ease, visibility 0.3s ease;
-        }
+        .modal { opacity: 0; visibility: hidden; transition: opacity 0.3s ease, visibility 0.3s ease; }
+        .modal.active { opacity: 1; visibility: visible; }
+        .modal-content { transform: scale(0.95); transition: transform 0.3s ease; }
+        .modal.active .modal-content { transform: scale(1); }
 
-        .modal.active {
-            opacity: 1;
-            visibility: visible;
-        }
-
-        .modal-content {
-            transform: scale(0.95);
-            transition: transform 0.3s ease;
-        }
-
-        .modal.active .modal-content {
-            transform: scale(1);
-        }
-
-        /* DOM Wheel Styles */
-        .wheel-wrapper {
-            position: relative;
-            width: 300px;
-            height: 300px;
-            margin: 0 auto;
-            border-radius: 50%;
-            border: 4px solid #f59e0b;
-            overflow: hidden;
-            box-shadow: 0 0 20px rgba(0,0,0,0.5);
-        }
-        .wheel-spinner {
-            width: 100%;
-            height: 100%;
-            position: relative;
-            border-radius: 50%;
-            transition: transform 5s cubic-bezier(0.25, 0.1, 0.25, 1); /* Slower spin */
-        }
-        .wheel-bg {
-            width: 100%;
-            height: 100%;
-            border-radius: 50%;
-            background: conic-gradient(
-                #f97316 0deg 45deg, 
-                #ef4444 45deg 90deg, 
-                #3b82f6 90deg 135deg, 
-                #22c55e 135deg 180deg, 
-                #eab308 180deg 225deg, 
-                #a855f7 225deg 270deg, 
-                #ec4899 270deg 315deg, 
-                #6366f1 315deg 360deg
-            );
-        }
-        .wheel-icon {
-            position: absolute;
-            top: 50%;
-            left: 50%;
-            width: 40px; 
-            height: 140px; /* Distance from center */
-            transform-origin: bottom center;
-            display: flex;
-            flex-direction: column;
-            justify-content: flex-start;
-            align-items: center;
-            padding-top: 10px;
-            color: white;
-            font-weight: bold;
-            text-shadow: 0 1px 2px rgba(0,0,0,0.5);
-            margin-left: -20px; /* Center horizontally */
-            margin-top: -140px; /* Center vertically to top half */
-        }
+        /* Wheel Styles */
+        .wheel-wrapper { position: relative; width: 300px; height: 300px; margin: 0 auto; border-radius: 50%; border: 4px solid #f59e0b; overflow: hidden; box-shadow: 0 0 20px rgba(0,0,0,0.5); }
+        .wheel-spinner { width: 100%; height: 100%; position: relative; border-radius: 50%; transition: transform 5s cubic-bezier(0.25, 0.1, 0.25, 1); }
+        .wheel-bg { width: 100%; height: 100%; border-radius: 50%; background: conic-gradient( #f97316 0deg 45deg, #ef4444 45deg 90deg, #3b82f6 90deg 135deg, #22c55e 135deg 180deg, #eab308 180deg 225deg, #a855f7 225deg 270deg, #ec4899 270deg 315deg, #6366f1 315deg 360deg ); }
+        .wheel-icon { position: absolute; top: 50%; left: 50%; width: 40px; height: 140px; transform-origin: bottom center; display: flex; flex-direction: column; justify-content: flex-start; align-items: center; padding-top: 10px; color: white; font-weight: bold; text-shadow: 0 1px 2px rgba(0,0,0,0.5); margin-left: -20px; margin-top: -140px; }
         
-        .macbook-glow {
-            animation: glow 1.5s ease-in-out infinite alternate;
-        }
-        
-        @keyframes glow {
-            from { box-shadow: 0 0 10px #fff, 0 0 20px #eab308; }
-            to { box-shadow: 0 0 20px #fff, 0 0 30px #f59e0b; }
-        }
+        /* Slots */
+        .slot-spinning { animation: blur-spin 0.1s infinite linear; }
 
-        /* Poker Card */
-        .card {
-            background: white;
-            color: black;
-            border-radius: 8px;
-            width: 60px;
-            height: 90px;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            justify-content: center;
-            font-weight: bold;
-            font-size: 1.2rem;
-            position: relative;
-            cursor: pointer;
-            transition: transform 0.2s, border 0.2s;
-            border: 2px solid transparent;
-        }
-        .card.held {
-            border: 4px solid #f59e0b; 
-            transform: translateY(-10px);
-            box-shadow: 0 4px 6px rgba(0,0,0,0.3);
-        }
-        .card.red { color: #dc2626; }
-        .card.black { color: #000; }
-        
-        /* Scratch Card Styles */
-        .scratch-container {
-            position: relative;
-            width: 300px;
-            height: 300px;
-            margin: 0 auto;
-            border-radius: 10px;
-            overflow: hidden;
-            border: 2px solid #475569;
-        }
-        .scratch-grid {
-            display: grid;
-            grid-template-columns: repeat(3, 1fr);
-            grid-template-rows: repeat(3, 1fr);
-            width: 100%;
-            height: 100%;
-            background: #1e293b;
-        }
-        .scratch-cell {
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            border: 1px dashed #334155;
-            font-weight: bold;
-            color: white;
-            font-size: 1.2rem;
-        }
-        #scratch-canvas {
-            position: absolute;
-            top: 0;
-            left: 0;
-            cursor: crosshair;
-            touch-action: none;
-        }
+        /* PvP Selected State */
+        .pvp-selected { border: 4px solid #3b82f6; background-color: #1e3a8a; transform: scale(1.05); }
+        .pulse-border { animation: pulse-glow 2s infinite; }
+        .room-item:hover { border-color: #3b82f6; background-color: #1e293b; }
 
-        /* Scrollbar hide */
-        .scrollbar-hide::-webkit-scrollbar { display: none; }
-        .scrollbar-hide { -ms-overflow-style: none; scrollbar-width: none; }
+        /* Radio Player */
+        #radio-player {
+            transition: transform 0.3s ease-in-out;
+        }
+        #radio-player.minimized {
+            transform: translateY(100%);
+        }
     </style>
 </head>
 <body class="bg-slate-900 min-h-screen flex flex-col">
 
     <!-- LANDING PAGE -->
-    <div id="landing-page" class="flex-grow flex flex-col items-center justify-center p-4">
+    <div id="landing-page" class="flex-grow flex flex-col items-center justify-center p-4 relative z-10">
         <div class="text-center mb-12">
             <h1 class="text-5xl md:text-6xl font-extrabold text-transparent bg-clip-text bg-gradient-to-r from-purple-400 to-pink-600 mb-4 animate-pulse">
                 Videregående Gambling
@@ -221,7 +98,7 @@
             
             <button onclick="openModal('login-modal')" class="group relative w-full flex items-center justify-center bg-white hover:bg-gray-100 text-slate-800 font-semibold py-3 px-4 rounded-lg border border-gray-300 shadow-sm transition-all duration-200">
                 <span class="absolute left-4 flex items-center">
-                    <!-- FEIDE LOGO SVG -->
+                    <!-- Original Feide SVG -->
                     <svg id="Layer_1" data-name="Layer 1" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 113.71 39" class="h-6 w-auto">
                         <defs><style>.cls-1{fill:#1f4698;}</style></defs>
                         <title>Horisontal_Feide</title>
@@ -239,22 +116,22 @@
                 </span>
                 Logg inn med Feide
             </button>
-            <p class="mt-4 text-xs text-slate-500">Ikke tilknyttet Sikt eller Utdanningsdirektoratet. (Bare tulla).</p>
+            <p class="mt-4 text-xs text-slate-500">Ikke tilknyttet Sikt eller Utdanningsdirektoratet.</p>
         </div>
     </div>
 
     <!-- MAIN DASHBOARD (Hidden until login) -->
-    <div id="dashboard" class="hidden flex-col h-screen overflow-y-auto">
+    <div id="dashboard" class="hidden flex-col h-screen overflow-y-auto pb-24">
         <!-- Header -->
         <header class="bg-slate-800 border-b border-slate-700 p-4 sticky top-0 z-10">
             <div class="max-w-7xl mx-auto flex justify-between items-center w-full">
                 <div class="flex items-center gap-2">
-                    <img src="https://www.akademiet.no/wp-content/uploads/2023/04/akademiet_nettstudier_oransje_rgb-1000x469.png" alt="Akademiet" class="h-6 md:h-10 object-contain">
+                    <span class="text-orange-500 font-black text-xl tracking-tighter">AKADEMIET<span class="text-white">BET</span></span>
                 </div>
                 
                 <div class="flex items-center gap-2 md:gap-4">
                     <button onclick="openModal('add-funds-modal')" class="bg-green-600 hover:bg-green-500 text-white px-3 py-1.5 rounded-full text-xs md:text-sm font-bold flex items-center gap-1 transition-all">
-                        <i data-lucide="send" class="w-4 h-4"></i> Send Faktura til Skolen
+                        <i data-lucide="send" class="w-4 h-4"></i> Send Faktura
                     </button>
                     <div class="bg-slate-900 px-4 py-1.5 rounded-full border border-slate-700 flex items-center gap-2">
                         <i data-lucide="coins" class="text-yellow-400 w-4 h-4"></i>
@@ -273,9 +150,63 @@
         <!-- Content Grid -->
         <main class="flex-grow p-4 md:p-8 max-w-7xl mx-auto w-full">
             
-            <h2 class="text-2xl font-bold mb-6 text-slate-200">Spillutvalg</h2>
+            <!-- PVP SECTION -->
+            <div class="mb-10">
+                <div class="flex justify-between items-end mb-4">
+                    <h2 class="text-2xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-red-400 to-orange-500 flex items-center gap-2">
+                        <i data-lucide="swords" class="text-red-500"></i> PvP Arena
+                    </h2>
+                    <button onclick="openLobby()" class="bg-blue-600 hover:bg-blue-500 text-white px-4 py-2 rounded-lg font-bold text-sm shadow-lg animate-pulse">
+                        Åpne Lobby / Finn Rom
+                    </button>
+                </div>
+
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    
+                    <!-- RPS -->
+                    <div class="bg-slate-800 rounded-xl overflow-hidden border border-red-500/50 hover:border-red-500 transition-all cursor-pointer group shadow-lg relative" onclick="openPvPSetup('rps')">
+                        <div class="h-24 bg-gradient-to-r from-slate-900 to-red-900/50 flex items-center justify-between px-6 relative">
+                            <i data-lucide="hand" class="w-10 h-10 text-slate-400 -rotate-12"></i>
+                            <div class="text-xl font-black text-white italic">VS</div>
+                            <i data-lucide="scissors" class="w-10 h-10 text-red-500 rotate-12"></i>
+                        </div>
+                        <div class="p-3">
+                            <h3 class="font-bold mb-1 text-white text-sm">Stein, Saks, Papir</h3>
+                            <p class="text-slate-400 text-[10px]">Utfordre en venn.</p>
+                        </div>
+                    </div>
+
+                    <!-- High Card -->
+                    <div class="bg-slate-800 rounded-xl overflow-hidden border border-blue-500/50 hover:border-blue-500 transition-all cursor-pointer group shadow-lg relative" onclick="openPvPSetup('card')">
+                        <div class="h-24 bg-gradient-to-r from-slate-900 to-blue-900/50 flex items-center justify-center relative">
+                            <div class="flex -space-x-3">
+                                <div class="w-8 h-12 bg-white rounded border border-gray-300 transform -rotate-6"></div>
+                                <div class="w-8 h-12 bg-blue-600 rounded border border-blue-400 transform rotate-6 flex items-center justify-center text-white font-bold text-xs">K</div>
+                            </div>
+                        </div>
+                        <div class="p-3">
+                            <h3 class="font-bold mb-1 text-white text-sm">Høyeste Kort</h3>
+                            <p class="text-slate-400 text-[10px]">Høyest kort vinner.</p>
+                        </div>
+                    </div>
+
+                     <!-- Dice Duel -->
+                     <div class="bg-slate-800 rounded-xl overflow-hidden border border-green-500/50 hover:border-green-500 transition-all cursor-pointer group shadow-lg relative" onclick="openPvPSetup('dice')">
+                        <div class="h-24 bg-gradient-to-r from-slate-900 to-green-900/50 flex items-center justify-center gap-2 relative">
+                            <i data-lucide="dice-5" class="w-8 h-8 text-white animate-bounce"></i>
+                            <i data-lucide="dice-3" class="w-8 h-8 text-green-500"></i>
+                        </div>
+                        <div class="p-3">
+                            <h3 class="font-bold mb-1 text-white text-sm">Terning-Duell</h3>
+                            <p class="text-slate-400 text-[10px]">Høyest sum vinner.</p>
+                        </div>
+                    </div>
+
+                </div>
+            </div>
+
+            <h2 class="text-2xl font-bold mb-6 text-slate-200">Solo Spill</h2>
             <div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 md:gap-6">
-                
                 <!-- Wheel Card -->
                 <div class="bg-slate-800 rounded-xl overflow-hidden border border-slate-700 hover:border-yellow-500 transition-all cursor-pointer group shadow-lg" onclick="openModal('wheel-modal')">
                     <div class="h-32 bg-gradient-to-br from-orange-900 to-slate-900 flex items-center justify-center relative">
@@ -286,14 +217,11 @@
                         <p class="text-slate-400 text-xs">Hovedpremie: MacBook Air</p>
                     </div>
                 </div>
-
-                <!-- Slots Card -->
-                <div class="bg-slate-800 rounded-xl overflow-hidden border border-slate-700 hover:border-purple-500 transition-all cursor-pointer group shadow-lg" onclick="openModal('slots-modal')">
+                 <!-- Slots Card -->
+                 <div class="bg-slate-800 rounded-xl overflow-hidden border border-slate-700 hover:border-purple-500 transition-all cursor-pointer group shadow-lg" onclick="openModal('slots-modal')">
                     <div class="h-32 bg-gradient-to-br from-purple-900 to-slate-900 flex items-center justify-center relative">
                         <div class="flex gap-2 text-white group-hover:animate-bounce">
                             <i data-lucide="cherry" class="w-8 h-8"></i>
-                            <i data-lucide="gem" class="w-8 h-8"></i>
-                            <i data-lucide="bell" class="w-8 h-8"></i>
                         </div>
                     </div>
                     <div class="p-4">
@@ -301,27 +229,8 @@
                         <p class="text-slate-400 text-xs">Tre like gir storgevinst!</p>
                     </div>
                 </div>
-
-                <!-- Poker Card -->
-                <div class="bg-slate-800 rounded-xl overflow-hidden border border-slate-700 hover:border-indigo-500 transition-all cursor-pointer group shadow-lg" onclick="openModal('poker-modal')">
-                    <div class="h-32 bg-gradient-to-br from-indigo-900 to-slate-900 flex items-center justify-center relative">
-                         <div class="flex gap-1 group-hover:scale-110 transition-transform">
-                            <div class="bg-white text-red-600 w-8 h-10 rounded flex items-center justify-center border border-red-600">
-                                <i data-lucide="heart" class="w-4 h-4 fill-red-600"></i>
-                            </div>
-                            <div class="bg-white text-black w-8 h-10 rounded flex items-center justify-center border border-black -ml-2 mt-1">
-                                <i data-lucide="spade" class="w-4 h-4 fill-black"></i>
-                            </div>
-                        </div>
-                    </div>
-                    <div class="p-4">
-                        <h3 class="font-bold mb-1">Video Poker</h3>
-                        <p class="text-slate-400 text-xs">Jacks or Better</p>
-                    </div>
-                </div>
-
-                <!-- Blackjack Card -->
-                <div class="bg-slate-800 rounded-xl overflow-hidden border border-slate-700 hover:border-green-600 transition-all cursor-pointer group shadow-lg" onclick="openModal('blackjack-modal')">
+                 <!-- Blackjack Card -->
+                 <div class="bg-slate-800 rounded-xl overflow-hidden border border-slate-700 hover:border-green-600 transition-all cursor-pointer group shadow-lg" onclick="openModal('blackjack-modal')">
                     <div class="h-32 bg-gradient-to-br from-green-900 to-slate-900 flex items-center justify-center relative">
                         <div class="text-5xl font-bold text-green-500 opacity-80 group-hover:text-green-400">21</div>
                     </div>
@@ -330,102 +239,16 @@
                         <p class="text-slate-400 text-xs">Slå huset uten å sprekke.</p>
                     </div>
                 </div>
-
-                <!-- Crash Card -->
-                <div class="bg-slate-800 rounded-xl overflow-hidden border border-slate-700 hover:border-red-500 transition-all cursor-pointer group shadow-lg" onclick="openModal('crash-modal')">
-                    <div class="h-32 bg-gradient-to-br from-red-900 to-slate-900 flex items-center justify-center relative overflow-hidden">
-                        <i data-lucide="trending-up" class="w-16 h-16 text-red-500 group-hover:translate-x-2 group-hover:-translate-y-2 transition-transform"></i>
-                    </div>
-                    <div class="p-4">
-                        <h3 class="font-bold mb-1">Eksamen Crash</h3>
-                        <p class="text-slate-400 text-xs">Hopp av før det smeller!</p>
-                    </div>
-                </div>
-
                 <!-- Mines Card -->
                 <div class="bg-slate-800 rounded-xl overflow-hidden border border-slate-700 hover:border-blue-500 transition-all cursor-pointer group shadow-lg" onclick="openModal('mines-modal')">
                     <div class="h-32 bg-gradient-to-br from-blue-900 to-slate-900 flex items-center justify-center relative">
-                        <div class="grid grid-cols-3 gap-1 opacity-80">
-                            <div class="w-4 h-4 bg-blue-500 rounded-sm"></div>
-                            <div class="w-4 h-4 bg-blue-500 rounded-sm"></div>
-                            <div class="w-4 h-4 bg-red-500 rounded-sm animate-pulse"></div>
-                            <div class="w-4 h-4 bg-blue-500 rounded-sm"></div>
-                            <div class="w-4 h-4 bg-blue-500 rounded-sm"></div>
-                            <div class="w-4 h-4 bg-blue-500 rounded-sm"></div>
-                        </div>
+                        <i data-lucide="bomb" class="w-16 h-16 text-blue-500"></i>
                     </div>
                     <div class="p-4">
                         <h3 class="font-bold mb-1">Fraværsgrensa</h3>
                         <p class="text-slate-400 text-xs">Unngå minene (anmerkning).</p>
                     </div>
                 </div>
-
-                <!-- Horse Racing -->
-                <div class="bg-slate-800 rounded-xl overflow-hidden border border-slate-700 hover:border-amber-700 transition-all cursor-pointer group shadow-lg" onclick="openModal('race-modal')">
-                    <div class="h-32 bg-gradient-to-br from-amber-900 to-slate-900 flex items-center justify-center relative">
-                        <i data-lucide="trophy" class="w-16 h-16 text-amber-600 group-hover:animate-ping"></i>
-                    </div>
-                    <div class="p-4">
-                        <h3 class="font-bold mb-1">Gymtimen</h3>
-                        <p class="text-slate-400 text-xs">Veddemål på 60-meteren.</p>
-                    </div>
-                </div>
-
-                <!-- Roulette -->
-                <div class="bg-slate-800 rounded-xl overflow-hidden border border-slate-700 hover:border-pink-600 transition-all cursor-pointer group shadow-lg" onclick="openModal('roulette-modal')">
-                    <div class="h-32 bg-gradient-to-br from-pink-900 to-slate-900 flex items-center justify-center relative">
-                        <i data-lucide="disc" class="w-16 h-16 text-pink-500 animate-spin-slow"></i>
-                    </div>
-                    <div class="p-4">
-                        <h3 class="font-bold mb-1">Russebuss Rulett</h3>
-                        <p class="text-slate-400 text-xs">Rød, Sort eller Grønn?</p>
-                    </div>
-                </div>
-
-                <!-- Coin Flip -->
-                <div class="bg-slate-800 rounded-xl overflow-hidden border border-slate-700 hover:border-yellow-200 transition-all cursor-pointer group shadow-lg" onclick="openModal('coin-modal')">
-                    <div class="h-32 bg-gradient-to-br from-yellow-900 to-slate-900 flex items-center justify-center relative">
-                         <i data-lucide="circle-dashed" class="w-16 h-16 text-yellow-400 group-hover:rotate-180 transition-all"></i>
-                    </div>
-                    <div class="p-4">
-                        <h3 class="font-bold mb-1">Kron eller Mynt</h3>
-                        <p class="text-slate-400 text-xs">50/50 sjanse.</p>
-                    </div>
-                </div>
-
-                <!-- Scratchcard -->
-                <div class="bg-slate-800 rounded-xl overflow-hidden border border-slate-700 hover:border-teal-500 transition-all cursor-pointer group shadow-lg" onclick="openModal('scratch-modal')">
-                    <div class="h-32 bg-gradient-to-br from-teal-900 to-slate-900 flex items-center justify-center relative">
-                        <i data-lucide="ticket" class="w-16 h-16 text-teal-500"></i>
-                    </div>
-                    <div class="p-4">
-                        <h3 class="font-bold mb-1">Flakslodd</h3>
-                        <p class="text-slate-400 text-xs">Skrap frem 3 like beløp.</p>
-                    </div>
-                </div>
-
-                <!-- High Low -->
-                <div class="bg-slate-800 rounded-xl overflow-hidden border border-slate-700 hover:border-cyan-500 transition-all cursor-pointer group shadow-lg" onclick="openModal('hilow-modal')">
-                    <div class="h-32 bg-gradient-to-br from-cyan-900 to-slate-900 flex items-center justify-center relative">
-                        <i data-lucide="arrow-up-down" class="w-16 h-16 text-cyan-500"></i>
-                    </div>
-                    <div class="p-4">
-                        <h3 class="font-bold mb-1">Høyere/Lavere</h3>
-                        <p class="text-slate-400 text-xs">Gjett neste kortverdi.</p>
-                    </div>
-                </div>
-
-                <!-- Dice -->
-                <div class="bg-slate-800 rounded-xl overflow-hidden border border-slate-700 hover:border-white transition-all cursor-pointer group shadow-lg" onclick="openModal('dice-modal')">
-                    <div class="h-32 bg-gradient-to-br from-gray-700 to-slate-900 flex items-center justify-center relative">
-                        <i data-lucide="dices" class="w-16 h-16 text-white"></i>
-                    </div>
-                    <div class="p-4">
-                        <h3 class="font-bold mb-1">Terningkast 6</h3>
-                        <p class="text-slate-400 text-xs">Kast terninger for gevinst.</p>
-                    </div>
-                </div>
-
             </div>
 
             <!-- Inventory Section -->
@@ -433,22 +256,44 @@
                 <div class="flex justify-between items-center mb-6">
                     <h3 class="text-xl font-bold flex items-center gap-2">
                         <i data-lucide="backpack" class="text-blue-400"></i>
-                        Skolesekken (Dine gevinster)
+                        Skolesekken
                     </h3>
                     <button onclick="openModal('claim-prize-modal')" class="bg-blue-600 hover:bg-blue-500 text-white text-xs px-3 py-2 rounded-lg font-bold">
                         Send premier til skole
                     </button>
                 </div>
-                
-                <div id="inventory-list" class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-4">
-                    <!-- Inventory items injected here -->
-                </div>
+                <div id="inventory-list" class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-4"></div>
             </div>
 
         </main>
     </div>
 
-    <!-- ===== MODALS ===== -->
+    <!-- RADIO PLAYER (Fixed HTTPS) -->
+    <div id="radio-player" class="fixed bottom-0 left-0 right-0 bg-slate-900 border-t border-slate-700 p-2 md:p-4 z-50 flex items-center justify-between shadow-2xl">
+        <div class="flex items-center gap-3">
+            <button onclick="togglePlayMusic()" id="radio-btn" class="bg-blue-600 hover:bg-blue-500 rounded-full w-10 h-10 flex items-center justify-center text-white">
+                <i data-lucide="play" id="radio-icon"></i>
+            </button>
+            <div class="flex flex-col">
+                <span class="text-xs text-slate-400 uppercase font-bold">Radio (HTTPS)</span>
+                <select id="radio-select" onchange="changeStation()" class="bg-transparent text-white font-bold text-sm focus:outline-none cursor-pointer">
+                    <option value="https://lyd.nrk.no/nrk_radio_p3_mp3_h">NRK P3 (NO)</option>
+                    <option value="https://stream.radioaalesund.no/ra128">Radio Ålesund (NO)</option>
+                    <option value="https://lyd.nrk.no/nrk_radio_mp3_h">NRK P1 (NO)</option>
+                    <option value="https://stream.p4.no/p4_mp3_hq">P4 Norge (NO)</option>
+                    <option value="https://ais-sa5.cdnstream1.com/b22139_128mp3">80s Hits (Global Safe)</option>
+                </select>
+            </div>
+        </div>
+        
+        <div class="flex items-center gap-2">
+            <i data-lucide="volume-2" class="w-4 h-4 text-slate-400"></i>
+            <input type="range" min="0" max="1" step="0.1" value="0.5" onchange="changeVolume(this.value)" class="w-20 accent-blue-500">
+        </div>
+        <audio id="audio-element" src="https://lyd.nrk.no/nrk_radio_p3_mp3_h"></audio>
+    </div>
+
+    <!-- ===== GENERIC MODALS ===== -->
 
     <!-- Login Modal -->
     <div id="login-modal" class="modal fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm p-4">
@@ -458,20 +303,17 @@
                 <button onclick="closeModal('login-modal')" class="text-slate-400 hover:text-slate-600"><i data-lucide="x" class="w-5 h-5"></i></button>
             </div>
             <div class="p-6">
-                <div class="mb-4 text-center">
-                    <div class="inline-block p-3 bg-blue-50 rounded-full mb-2">
-                        <svg class="w-8 h-8 text-[#1f4698]" fill="currentColor" viewBox="0 0 24 24"><path d="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z"/></svg>
-                    </div>
-                    <p class="text-sm text-slate-500">Skriv inn ditt brukernavn for å fortsette til Videregående Gambling.</p>
-                </div>
                 <form onsubmit="handleLogin(event)" class="space-y-4">
                     <div>
                         <label class="block text-xs font-semibold text-slate-500 uppercase mb-1">Brukernavn</label>
-                        <input type="text" id="username-input" required class="w-full px-3 py-2 border border-slate-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent" placeholder="f.eks. ola.nordmann">
+                        <input type="text" id="username-input" required class="w-full px-3 py-2 border border-slate-300 rounded" placeholder="f.eks. ola.nordmann">
                     </div>
-                    
+                    <div>
+                        <label class="block text-xs font-semibold text-slate-500 uppercase mb-1">Passord</label>
+                        <input type="password" id="password-input" required class="w-full px-3 py-2 border border-slate-300 rounded" placeholder="Hemmelig...">
+                    </div>
                     <button type="submit" id="login-btn" class="w-full bg-[#1f4698] hover:bg-[#163475] text-white font-bold py-2 px-4 rounded transition-colors flex justify-center items-center h-10">
-                        <span class="btn-text">Logg inn</span>
+                        <span class="btn-text">Logg inn / Registrer</span>
                         <div class="feide-loader"></div>
                         <div class="feide-success"><i data-lucide="check" class="w-5 h-5"></i></div>
                     </button>
@@ -480,7 +322,7 @@
         </div>
     </div>
 
-    <!-- First Login Bonus Modal -->
+    <!-- Bonus Modal -->
     <div id="bonus-modal" class="modal fixed inset-0 z-[60] flex items-center justify-center bg-black/90 p-4">
         <div class="modal-content bg-gradient-to-br from-yellow-500 to-orange-600 text-white p-8 rounded-2xl shadow-2xl max-w-sm text-center">
             <div class="mb-4 flex justify-center"><i data-lucide="gift" class="w-16 h-16 text-yellow-100"></i></div>
@@ -490,7 +332,7 @@
         </div>
     </div>
 
-    <!-- Add Funds Modal (Faktura) -->
+    <!-- Add Funds Modal -->
     <div id="add-funds-modal" class="modal fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm p-4">
         <div class="modal-content bg-slate-800 border border-slate-600 text-white rounded-xl w-full max-w-md">
             <div class="p-4 border-b border-slate-700 flex justify-between items-center">
@@ -498,26 +340,8 @@
                 <button onclick="closeModal('add-funds-modal')" class="text-slate-400 hover:text-white"><i data-lucide="x"></i></button>
             </div>
             <div class="p-6 space-y-4">
-                <p class="text-sm text-slate-400">Tom for penger? Send faktura til skolen. Du bestemmer beløpet.</p>
-                <div>
-                    <label class="block text-xs font-semibold text-slate-500 uppercase mb-1">Skole</label>
-                    <input type="text" id="fund-school" class="w-full px-3 py-2 bg-slate-700 border border-slate-600 rounded text-white" placeholder="f.eks. Oslo Katedralskole">
-                </div>
-                <div>
-                    <label class="block text-xs font-semibold text-slate-500 uppercase mb-1">Lærer (Godkjenner)</label>
-                    <input type="text" id="fund-teacher" class="w-full px-3 py-2 bg-slate-700 border border-slate-600 rounded text-white" placeholder="f.eks. Per Lærer">
-                </div>
-                <div>
-                    <label class="block text-xs font-semibold text-slate-500 uppercase mb-1">Beløp (NOK)</label>
-                    <input type="number" id="fund-amount" min="1" class="w-full px-3 py-2 bg-slate-700 border border-slate-600 rounded text-white" placeholder="f.eks. 5000">
-                </div>
-                <button onclick="processFunds()" id="fund-btn" class="w-full bg-green-600 hover:bg-green-500 text-white font-bold py-2 px-4 rounded transition-colors flex justify-center items-center h-10">
-                    <span id="fund-text">Send Faktura</span>
-                    <i id="fund-spin" data-lucide="loader-2" class="animate-spin hidden"></i>
-                </button>
-                <div id="fund-success" class="hidden text-green-400 text-center text-sm font-bold mt-2">
-                    Faktura godkjent av <span id="fund-teacher-display"></span>!
-                </div>
+                <div><label class="block text-xs font-semibold text-slate-500 uppercase mb-1">Beløp (NOK)</label><input type="number" id="fund-amount" min="1" class="w-full px-3 py-2 bg-slate-700 border border-slate-600 rounded text-white" placeholder="5000"></div>
+                <button onclick="processFunds()" id="fund-btn" class="w-full bg-green-600 hover:bg-green-500 text-white font-bold py-2 px-4 rounded transition-colors flex justify-center items-center h-10"><span id="fund-text">Send Faktura</span><i id="fund-spin" data-lucide="loader-2" class="animate-spin hidden"></i></button>
             </div>
         </div>
     </div>
@@ -525,33 +349,23 @@
     <!-- Claim Prize Modal -->
     <div id="claim-prize-modal" class="modal fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm p-4">
         <div class="modal-content bg-slate-800 border border-slate-600 text-white rounded-xl w-full max-w-md">
-            <div class="p-4 border-b border-slate-700 flex justify-between items-center">
-                <h3 class="font-bold">Hent Premier</h3>
-                <button onclick="closeModal('claim-prize-modal')" class="text-slate-400 hover:text-white"><i data-lucide="x"></i></button>
-            </div>
-            <div class="p-6 text-center space-y-4">
-                <i data-lucide="truck" class="w-12 h-12 text-blue-400 mx-auto"></i>
-                <p class="text-sm text-slate-400">Vi sender premiene dine direkte til skolen.</p>
-                <input type="text" id="claim-school" class="w-full px-3 py-2 bg-slate-700 border border-slate-600 rounded text-white" placeholder="Navn på skole...">
-                <button onclick="claimPrizes()" class="w-full bg-blue-600 hover:bg-blue-500 text-white font-bold py-2 rounded">Bekreft Sending</button>
-            </div>
+            <div class="p-4 border-b border-slate-700 flex justify-between items-center"><h3 class="font-bold">Hent Premier</h3><button onclick="closeModal('claim-prize-modal')" class="text-slate-400 hover:text-white"><i data-lucide="x"></i></button></div>
+            <div class="p-6 text-center space-y-4"><i data-lucide="truck" class="w-12 h-12 text-blue-400 mx-auto"></i><p class="text-sm text-slate-400">Vi sender premiene dine direkte til skolen.</p><input type="text" id="claim-school" class="w-full px-3 py-2 bg-slate-700 border border-slate-600 rounded text-white" placeholder="Navn på skole..."><button onclick="claimPrizes()" class="w-full bg-blue-600 hover:bg-blue-500 text-white font-bold py-2 rounded">Bekreft Sending</button></div>
         </div>
     </div>
 
     <!-- Settings Modal -->
     <div id="settings-modal" class="modal fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm p-4">
         <div class="modal-content bg-slate-800 border border-slate-700 text-white rounded-xl w-full max-w-sm">
-            <div class="p-4 border-b border-slate-700 flex justify-between items-center">
-                <h3 class="font-bold">Innstillinger</h3>
-                <button onclick="closeModal('settings-modal')" class="text-slate-400 hover:text-white"><i data-lucide="x"></i></button>
-            </div>
+            <div class="p-4 border-b border-slate-700 flex justify-between items-center"><h3 class="font-bold">Innstillinger</h3><button onclick="closeModal('settings-modal')" class="text-slate-400 hover:text-white"><i data-lucide="x"></i></button></div>
             <div class="p-6 space-y-4">
-                <button onclick="resetData()" class="w-full border border-red-500 text-red-500 hover:bg-red-500/10 font-bold py-2 px-4 rounded transition-colors flex items-center justify-center gap-2">
-                    <i data-lucide="trash-2" class="w-4 h-4"></i> Slett data og logg ut
-                </button>
-                <button onclick="logout()" class="w-full bg-slate-700 hover:bg-slate-600 text-white font-bold py-2 px-4 rounded transition-colors">
-                    Logg ut
-                </button>
+                <div class="bg-slate-900 p-3 rounded mb-4">
+                    <div class="text-xs text-slate-500">Logget inn som</div>
+                    <div class="font-bold" id="settings-username">-</div>
+                    <div class="text-xs text-slate-500 mt-2">Data lagres offentlig (Uten kryptering)</div>
+                </div>
+                <button onclick="resetData()" class="w-full border border-red-500 text-red-500 hover:bg-red-500/10 font-bold py-2 px-4 rounded transition-colors flex items-center justify-center gap-2"><i data-lucide="trash-2" class="w-4 h-4"></i> Slett data og logg ut</button>
+                <button onclick="logout()" class="w-full bg-slate-700 hover:bg-slate-600 text-white font-bold py-2 px-4 rounded transition-colors">Logg ut</button>
             </div>
         </div>
     </div>
@@ -565,432 +379,430 @@
         </div>
     </div>
 
-    <!-- ================= GAME MODALS ================= -->
+    <!-- ===== PVP MODALS ===== -->
 
-    <!-- Wheel Modal (Updated to DOM based for easy icons) -->
-    <div id="wheel-modal" class="modal fixed inset-0 z-50 flex items-center justify-center bg-black/90 backdrop-blur-md p-4">
-        <div class="modal-content bg-slate-800 border border-slate-600 rounded-2xl w-full max-w-lg shadow-2xl relative">
-            <button onclick="openModal('wheel-rules')" class="absolute top-4 left-4 bg-slate-700 p-2 rounded-full hover:bg-slate-600 text-xs text-slate-300 z-20">? Regler</button>
-            <button onclick="closeModal('wheel-modal')" class="absolute top-4 right-4 bg-slate-700 p-2 rounded-full hover:bg-slate-600 z-20"><i data-lucide="x" class="w-5 h-5"></i></button>
+    <!-- Lobby Modal (NEW) -->
+    <div id="lobby-modal" class="modal fixed inset-0 z-50 flex items-center justify-center bg-black/90 backdrop-blur-md p-4">
+        <div class="modal-content bg-slate-900 border border-slate-600 rounded-2xl w-full max-w-2xl p-0 overflow-hidden flex flex-col max-h-[85vh]">
+            <!-- Header -->
+            <div class="p-4 bg-slate-800 border-b border-slate-700 flex justify-between items-center">
+                <h2 class="text-xl font-bold text-white flex items-center gap-2"><i data-lucide="users" class="text-blue-400"></i> Multiplayer Lobby</h2>
+                <button onclick="closeModal('lobby-modal')" class="text-slate-400 hover:text-white"><i data-lucide="x"></i></button>
+            </div>
             
-            <div class="p-8 text-center">
-                <h2 class="text-2xl font-bold mb-2 text-yellow-400">Akademiet-hjulet</h2>
-                <div class="wheel-wrapper mb-8 mt-8">
-                    <!-- Triangle Marker -->
-                    <div class="absolute top-0 left-1/2 transform -translate-x-1/2 -translate-y-2 z-10 w-0 h-0 border-l-[15px] border-l-transparent border-r-[15px] border-r-transparent border-t-[30px] border-t-white drop-shadow-md"></div>
-                    
-                    <div id="wheel-spinner" class="wheel-spinner">
-                        <div class="wheel-bg"></div>
-                        <!-- Icons will be injected here by JS -->
+            <!-- Tabs -->
+            <div class="flex border-b border-slate-700 bg-slate-800/50">
+                <button onclick="switchTab('list')" id="tab-list" class="flex-1 py-3 text-sm font-bold text-blue-400 border-b-2 border-blue-400 bg-slate-800">Åpne Rom</button>
+                <button onclick="switchTab('host')" id="tab-host" class="flex-1 py-3 text-sm font-bold text-slate-400 hover:text-slate-200">Opprett Nytt</button>
+            </div>
+
+            <!-- Content -->
+            <div class="p-6 overflow-y-auto flex-grow bg-slate-900" id="lobby-content">
+                
+                <!-- Room List View -->
+                <div id="view-list" class="space-y-3">
+                    <div id="rooms-container">
+                        <div class="text-center text-slate-500 py-8 animate-pulse">Leter etter rom...</div>
                     </div>
                 </div>
-                <button id="spin-btn" onclick="spinWheel()" class="w-full bg-gradient-to-r from-yellow-500 to-orange-600 hover:from-yellow-400 hover:to-orange-500 text-white font-bold py-3 px-8 rounded-full shadow-lg text-xl">
-                    SPINN (100 kr)
+
+                <!-- Host View -->
+                <div id="view-host" class="hidden space-y-4">
+                    <div>
+                        <label class="block text-xs font-semibold text-slate-500 uppercase mb-1">Rom Navn</label>
+                        <input type="text" id="host-name" class="w-full px-3 py-2 bg-slate-800 border border-slate-700 rounded text-white" placeholder="Eks: Gutta Boys">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-semibold text-slate-500 uppercase mb-1">Spill</label>
+                        <select id="host-game" class="w-full px-3 py-2 bg-slate-800 border border-slate-700 rounded text-white">
+                            <option value="rps">Stein, Saks, Papir</option>
+                            <option value="card">Høyeste Kort</option>
+                            <option value="dice">Terning-Duell</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="block text-xs font-semibold text-slate-500 uppercase mb-1">Innsats (NOK)</label>
+                        <input type="number" id="host-bet" class="w-full px-3 py-2 bg-slate-800 border border-slate-700 rounded text-white" value="100">
+                    </div>
+                    <button onclick="createPublicRoom()" class="w-full bg-green-600 hover:bg-green-500 text-white font-bold py-3 rounded-lg shadow-lg mt-4">
+                        Start Rom
+                    </button>
+                </div>
+
+            </div>
+        </div>
+    </div>
+
+    <!-- PvP Setup Modal (Manual Code) -->
+    <div id="pvp-setup-modal" class="modal fixed inset-0 z-50 flex items-center justify-center bg-black/90 backdrop-blur-md p-4">
+        <div class="modal-content bg-slate-900 border border-slate-600 rounded-2xl w-full max-w-sm p-6 text-center">
+            <button onclick="closeModal('pvp-setup-modal')" class="absolute top-4 right-4 text-slate-400 hover:text-white"><i data-lucide="x"></i></button>
+            <h2 class="text-2xl font-bold mb-2 text-white" id="pvp-title">PvP Arena</h2>
+            
+            <!-- Quick Actions -->
+            <div class="grid grid-cols-2 gap-3 mb-6">
+                <button onclick="openLobbyFromSetup()" class="bg-blue-600/20 hover:bg-blue-600/40 border border-blue-500 text-blue-100 py-3 rounded-lg font-bold text-sm">
+                    Åpne Lobby
+                </button>
+                 <button onclick="togglePrivateSetup()" class="bg-slate-700 hover:bg-slate-600 border border-slate-500 text-slate-200 py-3 rounded-lg font-bold text-sm">
+                    Privat Kode
+                </button>
+            </div>
+
+            <!-- Private Code Form (Hidden initially) -->
+            <div id="private-setup-form" class="hidden space-y-4 text-left border-t border-slate-700 pt-4">
+                <div>
+                    <label class="block text-xs font-semibold text-slate-500 uppercase mb-1">Privat Kode</label>
+                    <input type="text" id="pvp-room-code" class="w-full px-3 py-2 bg-slate-800 border border-slate-700 rounded text-white font-mono text-center uppercase tracking-widest" placeholder="KODE">
+                </div>
+                <div>
+                    <label class="block text-xs font-semibold text-slate-500 uppercase mb-1">Innsats</label>
+                    <input type="number" id="pvp-bet" class="w-full px-3 py-2 bg-slate-800 border border-slate-700 rounded text-white text-center" value="100">
+                </div>
+                <button onclick="joinPvPRoom()" class="w-full bg-slate-600 hover:bg-slate-500 text-white font-bold py-3 rounded-lg">
+                    Gå til Privat Rom
                 </button>
             </div>
         </div>
     </div>
+
+    <!-- PvP Arena: RPS -->
+    <div id="pvp-rps-modal" class="modal fixed inset-0 z-[60] flex items-center justify-center bg-black/95 backdrop-blur-xl p-4">
+        <div class="modal-content bg-slate-900 border border-red-500/30 rounded-2xl w-full max-w-lg p-6 relative min-h-[400px] flex flex-col">
+            <button onclick="leavePvP()" class="absolute top-4 right-4 text-slate-500 hover:text-white text-xs bg-slate-800 px-2 py-1 rounded">FORLAT KAMP</button>
+            <div class="text-center mb-6">
+                <div class="text-xs text-slate-500 uppercase tracking-widest mb-1">Rom: <span id="rps-room-display" class="text-white font-mono"></span></div>
+                <h2 class="text-2xl font-bold text-red-500">Stein, Saks, Papir</h2>
+                <div class="text-sm text-yellow-500 font-bold mt-1">Pott: <span id="rps-pot">200</span> kr</div>
+            </div>
+            <div class="flex-grow flex flex-col justify-center items-center">
+                <div id="rps-status" class="text-xl font-bold text-white mb-8 animate-pulse">Venter på motstander...</div>
+                <div id="rps-controls" class="hidden flex gap-4">
+                    <button onclick="makeRPSMove('rock')" class="w-20 h-20 bg-slate-800 rounded-full border-2 border-slate-600 hover:border-white flex items-center justify-center transition-all hover:scale-110 active:scale-95 group"><i data-lucide="gem" class="w-8 h-8 text-slate-400 group-hover:text-white"></i></button>
+                    <button onclick="makeRPSMove('paper')" class="w-20 h-20 bg-slate-800 rounded-full border-2 border-slate-600 hover:border-white flex items-center justify-center transition-all hover:scale-110 active:scale-95 group"><i data-lucide="file" class="w-8 h-8 text-slate-400 group-hover:text-white"></i></button>
+                    <button onclick="makeRPSMove('scissors')" class="w-20 h-20 bg-slate-800 rounded-full border-2 border-slate-600 hover:border-white flex items-center justify-center transition-all hover:scale-110 active:scale-95 group"><i data-lucide="scissors" class="w-8 h-8 text-slate-400 group-hover:text-white"></i></button>
+                </div>
+                <div id="rps-result-area" class="hidden flex items-center gap-8">
+                    <div class="text-center"><p class="text-xs text-slate-500 mb-2">DEG</p><div id="my-move-display" class="w-24 h-24 bg-blue-900/50 rounded-xl border border-blue-500 flex items-center justify-center text-4xl">?</div></div>
+                    <div class="text-2xl font-black text-slate-600">VS</div>
+                    <div class="text-center"><p class="text-xs text-slate-500 mb-2">MOTSTANDER</p><div id="op-move-display" class="w-24 h-24 bg-red-900/50 rounded-xl border border-red-500 flex items-center justify-center text-4xl">?</div></div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- PvP Arena: High Card -->
+    <div id="pvp-card-modal" class="modal fixed inset-0 z-[60] flex items-center justify-center bg-black/95 backdrop-blur-xl p-4">
+        <div class="modal-content bg-slate-900 border border-blue-500/30 rounded-2xl w-full max-w-lg p-6 relative min-h-[400px] flex flex-col">
+            <button onclick="leavePvP()" class="absolute top-4 right-4 text-slate-500 hover:text-white text-xs bg-slate-800 px-2 py-1 rounded">FORLAT KAMP</button>
+            <div class="text-center mb-6">
+                <div class="text-xs text-slate-500 uppercase tracking-widest mb-1">Rom: <span id="card-room-display" class="text-white font-mono"></span></div>
+                <h2 class="text-2xl font-bold text-blue-500">Høyeste Kort</h2>
+                <div class="text-sm text-yellow-500 font-bold mt-1">Pott: <span id="card-pot">200</span> kr</div>
+            </div>
+            <div class="flex-grow flex flex-col justify-center items-center">
+                <div id="card-status" class="text-xl font-bold text-white mb-8">Venter på motstander...</div>
+                <div id="card-controls" class="hidden">
+                    <button onclick="drawPvPCard()" class="bg-blue-600 hover:bg-blue-500 text-white font-bold py-3 px-8 rounded-lg shadow-lg text-lg animate-pulse">TREKK KORT</button>
+                </div>
+                <div id="card-result-area" class="hidden flex gap-4">
+                    <div id="my-card-display" class="w-24 h-36 bg-white rounded-lg flex items-center justify-center text-black font-bold text-2xl border-4 border-blue-500 transform -rotate-3"></div>
+                    <div id="op-card-display" class="w-24 h-36 bg-slate-700 rounded-lg flex items-center justify-center text-white font-bold text-2xl border-4 border-slate-500 transform rotate-3">?</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- PvP Arena: Dice Duel (NEW) -->
+    <div id="pvp-dice-modal" class="modal fixed inset-0 z-[60] flex items-center justify-center bg-black/95 backdrop-blur-xl p-4">
+        <div class="modal-content bg-slate-900 border border-green-500/30 rounded-2xl w-full max-w-lg p-6 relative min-h-[400px] flex flex-col">
+            <button onclick="leavePvP()" class="absolute top-4 right-4 text-slate-500 hover:text-white text-xs bg-slate-800 px-2 py-1 rounded">FORLAT KAMP</button>
+            <div class="text-center mb-6">
+                <div class="text-xs text-slate-500 uppercase tracking-widest mb-1">Rom: <span id="dice-room-display" class="text-white font-mono"></span></div>
+                <h2 class="text-2xl font-bold text-green-500">Terning-Duell</h2>
+                <div class="text-sm text-yellow-500 font-bold mt-1">Pott: <span id="dice-pot">200</span> kr</div>
+            </div>
+            <div class="flex-grow flex flex-col justify-center items-center">
+                <div id="dice-status" class="text-xl font-bold text-white mb-8">Venter på motstander...</div>
+                <div id="dice-controls" class="hidden">
+                    <button onclick="rollPvPDice()" class="bg-green-600 hover:bg-green-500 text-white font-bold py-3 px-8 rounded-lg shadow-lg text-lg animate-pulse">KAST TERNINGER</button>
+                </div>
+                <div id="dice-result-area" class="hidden grid grid-cols-2 gap-8 w-full">
+                    <div class="text-center">
+                        <div class="text-sm text-slate-400 mb-2">DEG</div>
+                        <div id="my-dice-val" class="text-5xl font-bold text-white mb-2">-</div>
+                        <div class="flex justify-center gap-1 opacity-50 text-xs" id="my-dice-details"></div>
+                    </div>
+                    <div class="text-center border-l border-slate-700">
+                        <div class="text-sm text-slate-400 mb-2">MOTSTANDER</div>
+                        <div id="op-dice-val" class="text-5xl font-bold text-slate-500 mb-2">-</div>
+                        <div class="flex justify-center gap-1 opacity-50 text-xs" id="op-dice-details"></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ===== SOLO MODALS ===== -->
+    <div id="wheel-modal" class="modal fixed inset-0 z-50 flex items-center justify-center bg-black/90 backdrop-blur-md p-4"><div class="modal-content bg-slate-800 border border-slate-600 rounded-2xl w-full max-w-lg shadow-2xl relative p-8 text-center"><button onclick="closeModal('wheel-modal')" class="absolute top-4 right-4 text-slate-400"><i data-lucide="x"></i></button><h2 class="text-2xl font-bold mb-2 text-yellow-400">Akademiet-hjulet</h2><div class="wheel-wrapper mb-8 mt-8"><div class="absolute top-0 left-1/2 transform -translate-x-1/2 -translate-y-2 z-10 w-0 h-0 border-l-[15px] border-l-transparent border-r-[15px] border-r-transparent border-t-[30px] border-t-white drop-shadow-md"></div><div id="wheel-spinner" class="wheel-spinner"><div class="wheel-bg"></div></div></div><button onclick="spinWheel()" class="w-full bg-gradient-to-r from-yellow-500 to-orange-600 hover:from-yellow-400 hover:to-orange-500 text-white font-bold py-3 px-8 rounded-full shadow-lg text-xl">SPINN (100 kr)</button></div></div>
     
-    <!-- Wheel Rules -->
-    <div id="wheel-rules" class="modal fixed inset-0 z-[60] flex items-center justify-center bg-black/60 p-4">
-        <div class="modal-content bg-slate-700 border border-slate-500 rounded-lg max-w-xs w-full p-6 text-center">
-             <h4 class="font-bold text-lg mb-2">Gevinster</h4>
-            <ul class="text-left text-sm text-slate-300 space-y-1 mb-4">
-                <li>💻 MacBook Air (0.5%)</li>
-                <li>🎧 Gaming Headset (5%)</li>
-                <li>🎒 Akademiet Sekk (10%)</li>
-                <li>✏️ Penn & Papir (30%)</li>
-                <li>🍎 Gammelt Eple (20%)</li>
-                <li>🥤 Energidrikk (34.5%)</li>
-            </ul>
-            <button onclick="closeModal('wheel-rules')" class="bg-slate-900 px-4 py-2 rounded text-sm hover:bg-slate-800">Lukk</button>
+    <!-- Updated Slots Modal -->
+    <div id="slots-modal" class="modal fixed inset-0 z-50 flex items-center justify-center bg-black/90 p-4">
+        <div class="modal-content bg-slate-900 border border-purple-600 rounded-2xl p-6 text-center w-full max-w-lg">
+            <button onclick="closeModal('slots-modal')" class="absolute top-4 right-4 text-white"><i data-lucide="x"></i></button>
+            <h2 class="text-2xl font-bold mb-6 text-purple-400">Slots</h2>
+            <div class="flex justify-center gap-2 mb-8 bg-black/50 p-4 rounded-xl border border-slate-700">
+                <div id="reel-1" class="slot-reel w-24 h-32 bg-slate-800 rounded-lg flex items-center justify-center text-4xl border-2 border-slate-600 overflow-hidden relative">❓</div>
+                <div id="reel-2" class="slot-reel w-24 h-32 bg-slate-800 rounded-lg flex items-center justify-center text-4xl border-2 border-slate-600 overflow-hidden relative">❓</div>
+                <div id="reel-3" class="slot-reel w-24 h-32 bg-slate-800 rounded-lg flex items-center justify-center text-4xl border-2 border-slate-600 overflow-hidden relative">❓</div>
+            </div>
+            <button onclick="spinSlots()" id="slot-btn" class="w-full bg-gradient-to-b from-purple-600 to-purple-800 hover:from-purple-500 hover:to-purple-700 text-white py-4 rounded-xl font-bold text-xl shadow-lg border-b-4 border-purple-900 active:border-0 active:translate-y-1">SPINN (50kr)</button>
         </div>
     </div>
-
-    <!-- Slots Modal -->
-    <div id="slots-modal" class="modal fixed inset-0 z-50 flex items-center justify-center bg-black/90 backdrop-blur-md p-4">
-        <div class="modal-content bg-slate-900 border border-purple-600 rounded-2xl w-full max-w-lg shadow-2xl relative p-6">
-            <button onclick="closeModal('slots-modal')" class="absolute top-4 right-4 text-slate-400 hover:text-white"><i data-lucide="x"></i></button>
-            <h2 class="text-2xl font-bold mb-6 text-center text-purple-400">Lærerværelset Slots</h2>
-            
-            <div class="flex justify-center gap-2 mb-8 bg-slate-800 p-4 rounded-xl border border-slate-700">
-                <div id="reel-1" class="slot-reel w-20 h-24 md:w-24 md:h-32 rounded border-2 border-slate-600 flex items-center justify-center overflow-hidden bg-slate-700"></div>
-                <div id="reel-2" class="slot-reel w-20 h-24 md:w-24 md:h-32 rounded border-2 border-slate-600 flex items-center justify-center overflow-hidden bg-slate-700"></div>
-                <div id="reel-3" class="slot-reel w-20 h-24 md:w-24 md:h-32 rounded border-2 border-slate-600 flex items-center justify-center overflow-hidden bg-slate-700"></div>
-            </div>
-
-            <button onclick="spinSlots()" class="w-full bg-purple-600 hover:bg-purple-500 text-white font-bold py-4 rounded-xl shadow-lg text-xl border-b-4 border-purple-800 active:border-0 active:translate-y-1">
-                SPINN (50 kr)
-            </button>
-            <div class="mt-4 text-center text-xs text-slate-500">3 like gir 500kr. 3xMacBook gir 5000kr!</div>
-        </div>
-    </div>
-
-    <!-- Poker Modal -->
-    <div id="poker-modal" class="modal fixed inset-0 z-50 flex items-center justify-center bg-black/90 backdrop-blur-md p-2">
-        <div class="modal-content bg-[#2f4335] border-4 border-[#3e5746] rounded-2xl w-full max-w-3xl shadow-2xl relative flex flex-col max-h-[90vh]">
-            <div class="p-4 bg-[#233328] flex justify-between items-center rounded-t-xl border-b border-[#3e5746]">
-                <h2 class="text-xl font-bold text-yellow-400">VIDEO POKER</h2>
-                <button onclick="closeModal('poker-modal')" class="text-white"><i data-lucide="x"></i></button>
-            </div>
-            <div class="flex-grow p-4 md:p-8 flex flex-col items-center justify-center bg-[radial-gradient(ellipse_at_center,_var(--tw-gradient-stops))] from-[#3a5241] to-[#233328]">
-                <div id="poker-message" class="h-8 mb-4 text-yellow-300 font-bold text-lg text-center">LYKKE TIL</div>
-                <div class="grid grid-cols-5 gap-2 md:gap-4 mb-8 w-full max-w-2xl">
-                    <div id="card-0" class="card" onclick="toggleHold(0)"></div>
-                    <div id="card-1" class="card" onclick="toggleHold(1)"></div>
-                    <div id="card-2" class="card" onclick="toggleHold(2)"></div>
-                    <div id="card-3" class="card" onclick="toggleHold(3)"></div>
-                    <div id="card-4" class="card" onclick="toggleHold(4)"></div>
-                </div>
-                <button id="deal-btn" onclick="dealPoker()" class="bg-yellow-500 hover:bg-yellow-400 text-yellow-900 font-extrabold text-xl py-3 px-10 rounded shadow-lg">DEAL (50 kr)</button>
-            </div>
-        </div>
-    </div>
-
-    <!-- Crash Modal -->
-    <div id="crash-modal" class="modal fixed inset-0 z-50 flex items-center justify-center bg-black/90 backdrop-blur-md p-4">
-        <div class="modal-content bg-slate-900 border border-slate-700 rounded-2xl w-full max-w-2xl p-6">
-            <button onclick="closeModal('crash-modal')" class="absolute top-4 right-4 text-slate-400 hover:text-white"><i data-lucide="x"></i></button>
-            <h2 class="text-2xl font-bold mb-4 text-red-500">Eksamen Crash</h2>
-            
-            <div class="relative w-full h-64 bg-slate-800 rounded-lg mb-4 overflow-hidden">
-                <canvas id="crash-canvas" class="w-full h-full"></canvas>
-                <div class="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 text-5xl font-bold text-white font-mono" id="crash-multiplier">1.00x</div>
-            </div>
-
-            <button id="crash-btn" onclick="playCrash()" class="w-full bg-green-600 hover:bg-green-500 text-white font-bold py-4 rounded text-xl">
-                START EKSAMEN (100 kr)
-            </button>
-        </div>
-    </div>
-
-    <!-- Mines Modal -->
-    <div id="mines-modal" class="modal fixed inset-0 z-50 flex items-center justify-center bg-black/90 p-4">
-        <div class="modal-content bg-slate-900 border border-slate-700 rounded-2xl p-6 w-full max-w-md">
-            <div class="flex justify-between items-center mb-4">
-                <h2 class="text-xl font-bold text-blue-400">Fraværsgrensa (Mines)</h2>
-                <button onclick="closeModal('mines-modal')" class="text-slate-400"><i data-lucide="x"></i></button>
-            </div>
-            <div id="mines-grid" class="grid grid-cols-5 gap-2 mb-4">
-                <!-- Generated by JS -->
-            </div>
-            <div class="flex justify-between items-center bg-slate-800 p-3 rounded">
-                <div class="text-sm">Neste: <span id="mines-next-reward" class="text-green-400 font-bold">1.2x</span></div>
-                <button id="mines-cashout" onclick="cashoutMines()" class="bg-green-600 px-4 py-1 rounded text-sm font-bold opacity-50 cursor-not-allowed" disabled>Hent Gevinst</button>
-            </div>
-            <button id="mines-start" onclick="startMines()" class="w-full mt-4 bg-blue-600 hover:bg-blue-500 py-2 rounded font-bold">Start (50 kr)</button>
-        </div>
-    </div>
-
-    <!-- Blackjack Modal -->
-    <div id="blackjack-modal" class="modal fixed inset-0 z-50 flex items-center justify-center bg-black/90 p-4">
-        <div class="modal-content bg-[#1a472a] border-4 border-[#2d5e3e] rounded-xl w-full max-w-2xl p-6 text-center">
-            <button onclick="closeModal('blackjack-modal')" class="absolute top-4 right-4 text-white/50 hover:text-white"><i data-lucide="x"></i></button>
-            <h2 class="text-2xl font-bold text-green-100 mb-6">Rektors Blackjack</h2>
-            
-            <div class="mb-2 text-green-200/50 text-sm uppercase">Rektor (Dealer)</div>
-            <div id="bj-dealer-cards" class="flex justify-center gap-2 mb-8 h-24"></div>
-            
-            <div class="mb-2 text-green-200/50 text-sm uppercase">Deg</div>
-            <div id="bj-player-cards" class="flex justify-center gap-2 mb-8 h-24"></div>
-            
-            <div id="bj-message" class="text-xl font-bold text-yellow-400 mb-4 h-8"></div>
-            
-            <div id="bj-controls" class="flex justify-center gap-4">
-                <button onclick="startBlackjack()" class="bg-yellow-500 text-yellow-900 font-bold py-2 px-8 rounded shadow">DEAL (100 kr)</button>
-            </div>
-            <div id="bj-actions" class="hidden flex justify-center gap-4">
-                <button onclick="bjHit()" class="bg-blue-600 hover:bg-blue-500 text-white font-bold py-2 px-6 rounded">KORT</button>
-                <button onclick="bjStand()" class="bg-red-600 hover:bg-red-500 text-white font-bold py-2 px-6 rounded">STÅ</button>
-            </div>
-        </div>
-    </div>
-
-    <!-- Coin Flip Modal -->
-    <div id="coin-modal" class="modal fixed inset-0 z-50 flex items-center justify-center bg-black/90 p-4">
-        <div class="modal-content bg-slate-800 border border-slate-600 rounded-xl p-8 text-center max-w-sm w-full">
-            <button onclick="closeModal('coin-modal')" class="absolute top-4 right-4 text-slate-400"><i data-lucide="x"></i></button>
-            <h2 class="text-2xl font-bold mb-8">Kron eller Mynt</h2>
-            <div id="coin-display" class="w-32 h-32 bg-yellow-400 rounded-full mx-auto mb-8 flex items-center justify-center shadow-xl border-4 border-yellow-200">
-                <i data-lucide="help-circle" class="w-16 h-16 text-yellow-900"></i>
-            </div>
-            <div class="grid grid-cols-2 gap-4">
-                <button onclick="playCoin('kron')" class="bg-slate-700 hover:bg-slate-600 p-4 rounded font-bold border border-slate-500">KRON</button>
-                <button onclick="playCoin('mynt')" class="bg-slate-700 hover:bg-slate-600 p-4 rounded font-bold border border-slate-500">MYNT</button>
-            </div>
-            <p class="mt-4 text-xs text-slate-500">Innsats: 50 kr. Vinn: 100 kr.</p>
-        </div>
-    </div>
-
-    <!-- Scratch Modal -->
-    <div id="scratch-modal" class="modal fixed inset-0 z-50 flex items-center justify-center bg-black/90 p-4">
-        <div class="modal-content bg-slate-800 border border-slate-600 rounded-xl p-6 text-center max-w-sm w-full">
-            <button onclick="closeModal('scratch-modal')" class="absolute top-4 right-4 text-slate-400"><i data-lucide="x"></i></button>
-            <h2 class="text-xl font-bold mb-4">Flakslodd</h2>
-            <p class="text-xs text-slate-400 mb-2">Skrap bort det grå feltet!</p>
-            
-            <div class="scratch-container mb-4">
-                <div id="scratch-grid" class="scratch-grid">
-                    <!-- Grid generated by JS -->
-                </div>
-                <canvas id="scratch-canvas" width="300" height="300"></canvas>
-            </div>
-
-            <button onclick="buyScratch()" id="scratch-btn" class="w-full bg-teal-600 hover:bg-teal-500 font-bold py-2 rounded">Kjøp Lodd (50 kr)</button>
-        </div>
-    </div>
-
-    <!-- Roulette Modal (Simple) -->
-    <div id="roulette-modal" class="modal fixed inset-0 z-50 flex items-center justify-center bg-black/90 p-4">
-        <div class="modal-content bg-slate-800 border border-slate-600 rounded-xl p-6 text-center max-w-md w-full">
-            <button onclick="closeModal('roulette-modal')" class="absolute top-4 right-4 text-slate-400"><i data-lucide="x"></i></button>
-            <h2 class="text-xl font-bold mb-2">Russebuss Rulett</h2>
-            <div id="roulette-wheel" class="w-full h-12 bg-slate-700 mb-6 rounded overflow-hidden flex items-center justify-center relative border border-slate-500">
-                <div class="text-2xl font-mono" id="roulette-result">RULLER...</div>
-            </div>
-            <div class="grid grid-cols-3 gap-2">
-                <button onclick="playRoulette('red')" class="bg-red-600 hover:bg-red-500 py-3 rounded font-bold">RØD (2x)</button>
-                <button onclick="playRoulette('green')" class="bg-green-600 hover:bg-green-500 py-3 rounded font-bold">GRØNN (14x)</button>
-                <button onclick="playRoulette('black')" class="bg-slate-900 hover:bg-slate-950 py-3 rounded font-bold border border-slate-700">SORT (2x)</button>
-            </div>
-            <p class="mt-4 text-xs text-slate-500">Innsats: 100 kr.</p>
-        </div>
-    </div>
-
-    <!-- Dice Modal -->
-    <div id="dice-modal" class="modal fixed inset-0 z-50 flex items-center justify-center bg-black/90 p-4">
-        <div class="modal-content bg-slate-800 border border-slate-600 rounded-xl p-8 text-center max-w-xs w-full">
-            <button onclick="closeModal('dice-modal')" class="absolute top-4 right-4 text-slate-400"><i data-lucide="x"></i></button>
-            <h2 class="text-2xl font-bold mb-6">Terningkast</h2>
-            <div id="dice-visual" class="flex justify-center gap-4 mb-8">
-                <div class="w-16 h-16 bg-white rounded flex items-center justify-center text-4xl text-black font-bold border-2 border-slate-400">
-                    <i data-lucide="help-circle" class="w-8 h-8"></i>
-                </div>
-            </div>
-            <button onclick="rollDice()" id="dice-btn" class="w-full bg-indigo-600 hover:bg-indigo-500 py-2 rounded font-bold">Kast (50 kr)</button>
-            <p class="mt-2 text-xs text-slate-400">Kast 6 for å vinne 150 kr.</p>
-        </div>
-    </div>
-
-     <!-- Race Modal -->
-     <div id="race-modal" class="modal fixed inset-0 z-50 flex items-center justify-center bg-black/90 p-4">
-        <div class="modal-content bg-slate-800 border border-slate-600 rounded-xl p-6 w-full max-w-lg">
-            <button onclick="closeModal('race-modal')" class="absolute top-4 right-4 text-slate-400"><i data-lucide="x"></i></button>
-            <h2 class="text-xl font-bold mb-4 text-center">Gymtime-løpet</h2>
-            
-            <div class="space-y-4 mb-6" id="race-track">
-                <!-- Horses -->
-            </div>
-
-            <div class="grid grid-cols-3 gap-2">
-                <button onclick="startRace(0)" class="bg-red-600 py-2 rounded text-sm">Hest 1 (Rød)</button>
-                <button onclick="startRace(1)" class="bg-blue-600 py-2 rounded text-sm">Hest 2 (Blå)</button>
-                <button onclick="startRace(2)" class="bg-green-600 py-2 rounded text-sm">Hest 3 (Grønn)</button>
-            </div>
-            <p class="mt-2 text-center text-xs text-slate-400">Innsats: 100 kr. Vinn: 300 kr.</p>
-        </div>
-    </div>
-
-    <!-- HiLow Modal -->
-    <div id="hilow-modal" class="modal fixed inset-0 z-50 flex items-center justify-center bg-black/90 p-4">
-        <div class="modal-content bg-slate-800 border border-slate-600 rounded-xl p-8 text-center max-w-xs w-full">
-            <button onclick="closeModal('hilow-modal')" class="absolute top-4 right-4 text-slate-400"><i data-lucide="x"></i></button>
-            <h2 class="text-xl font-bold mb-4">Høyere / Lavere</h2>
-            
-            <div class="bg-white text-black w-24 h-36 rounded mx-auto mb-4 flex flex-col items-center justify-center text-4xl font-bold border-4 border-slate-200" id="hilow-card">
-                7
-            </div>
-            
-            <div class="grid grid-cols-2 gap-4">
-                <button onclick="playHiLow('high')" class="bg-cyan-600 py-3 rounded font-bold hover:bg-cyan-500">Høyere</button>
-                <button onclick="playHiLow('low')" class="bg-purple-600 py-3 rounded font-bold hover:bg-purple-500">Lavere</button>
-            </div>
-            <p class="mt-4 text-xs text-slate-500">Gjett neste kort (A=1, K=13).</p>
-        </div>
-    </div>
-
+    
+    <div id="blackjack-modal" class="modal fixed inset-0 z-50 flex items-center justify-center bg-black/90 p-4"><div class="modal-content bg-[#1a472a] border-4 border-[#2d5e3e] rounded-xl w-full max-w-lg p-6 text-center"><button onclick="closeModal('blackjack-modal')" class="absolute top-4 right-4 text-white"><i data-lucide="x"></i></button><h2 class="text-2xl font-bold text-green-100 mb-6">Blackjack</h2><div id="bj-dealer-cards" class="flex justify-center gap-2 mb-4 h-24"></div><div id="bj-player-cards" class="flex justify-center gap-2 mb-4 h-24"></div><div id="bj-message" class="text-yellow-400 font-bold mb-2"></div><div id="bj-controls" class="flex justify-center gap-4"><button onclick="startBlackjack()" class="bg-yellow-500 text-black px-6 py-2 rounded">DEAL (100kr)</button></div><div id="bj-actions" class="hidden flex justify-center gap-4"><button onclick="bjHit()" class="bg-blue-600 text-white px-4 py-2 rounded">HIT</button><button onclick="bjStand()" class="bg-red-600 text-white px-4 py-2 rounded">STAND</button></div></div></div>
+    <div id="mines-modal" class="modal fixed inset-0 z-50 flex items-center justify-center bg-black/90 p-4"><div class="modal-content bg-slate-900 border border-slate-700 rounded-2xl p-6 w-full max-w-md"><div class="flex justify-between items-center mb-4"><h2 class="text-xl font-bold text-blue-400">Mines</h2><button onclick="closeModal('mines-modal')" class="text-slate-400"><i data-lucide="x"></i></button></div><div id="mines-grid" class="grid grid-cols-5 gap-2 mb-4"></div><div class="flex justify-between items-center bg-slate-800 p-3 rounded"><div class="text-sm">Neste: <span id="mines-next-reward" class="text-green-400 font-bold">1.2x</span></div><button id="mines-cashout" onclick="cashoutMines()" class="bg-green-600 px-4 py-1 rounded text-sm font-bold opacity-50 cursor-not-allowed" disabled>Hent Gevinst</button></div><button id="mines-start" onclick="startMines()" class="w-full mt-4 bg-blue-600 hover:bg-blue-500 py-2 rounded font-bold">Start (50 kr)</button></div></div>
 
     <script>
-        // --- SOUND ENGINE (RESTORED MP3s) ---
+        // --- SOUND ENGINE ---
         const SoundEngine = {
             sounds: {
                 win: new Audio('https://www.soundjay.com/misc/sounds/bell-ringing-05.mp3'),
                 coin: new Audio('https://www.soundjay.com/misc/sounds/coins-in-hand-2.mp3'),
                 spin: new Audio('https://www.soundjay.com/button/sounds/button-30.mp3'),
-                loss: new Audio('https://www.soundjay.com/misc/sounds/fail-trombone-01.mp3')
+                loss: new Audio('https://www.soundjay.com/misc/sounds/fail-trombone-01.mp3'),
+                click: new Audio('https://www.soundjay.com/button/sounds/button-16.mp3')
             },
-            playWin: function() {
-                try { this.sounds.win.currentTime = 0; this.sounds.win.play(); } catch(e){ console.log("Sound err", e); }
-            },
-            playCoin: function() {
-                try { this.sounds.coin.currentTime = 0; this.sounds.coin.play(); } catch(e){ console.log("Sound err", e); }
-            },
-            playSpin: function() {
-                try { this.sounds.spin.currentTime = 0; this.sounds.spin.play(); } catch(e){ console.log("Sound err", e); }
-            },
-            playLoss: function() {
-                try { this.sounds.loss.currentTime = 0; this.sounds.loss.play(); } catch(e){ console.log("Sound err", e); }
+            play: function(name) { 
+                try { 
+                    this.sounds[name].currentTime = 0; 
+                    const p = this.sounds[name].play(); 
+                    if(p !== undefined) p.catch(e => console.log("Audio play failed (interaction needed?):", e));
+                } catch(e){ console.log("Audio Error:", e); } 
             }
         };
 
-        // --- STATE ---
-        const DEFAULT_BALANCE = 0; 
-        let state = {
-            username: '',
-            balance: DEFAULT_BALANCE,
-            inventory: [],
-            isLoggedIn: false,
-            hasClaimedBonus: false
-        };
+        // --- RADIO LOGIC ---
+        const audioEl = document.getElementById('audio-element');
+        const radioIcon = document.getElementById('radio-icon');
+        let isPlaying = false;
+
+        function togglePlayMusic() {
+            if(isPlaying) {
+                audioEl.pause();
+                radioIcon.setAttribute('data-lucide', 'play');
+            } else {
+                audioEl.play().catch(e => alert("Kunne ikke starte radio. Sjekk internett/brannmur."));
+                radioIcon.setAttribute('data-lucide', 'pause');
+            }
+            isPlaying = !isPlaying;
+            lucide.createIcons();
+        }
+
+        function changeStation() {
+            const url = document.getElementById('radio-select').value;
+            audioEl.src = url;
+            if(isPlaying) audioEl.play();
+        }
+
+        function changeVolume(val) {
+            audioEl.volume = val;
+        }
+
+        // --- GLOBAL STATE ---
+        let state = { username: '', balance: 0, inventory: [], isLoggedIn: false, hasClaimedBonus: false };
+        
+        // --- GUN SETUP & ERROR HANDLING ---
+        // Simplified: NO SEA / Encryption. Just plain Gun.
+        let gun, appScope;
+        try {
+            gun = Gun(['https://gun-manhattan.herokuapp.com/gun']); // Public relay
+            // Version bumping to clear old data structures
+            appScope = gun.get('videregaende-gambling-pvp-v4-simple'); 
+        } catch(e) {
+            console.error("GUN.JS BLOCKED:", e);
+            alert("Advarsel: Skolenettet blokkerer trolig multiplayer-motoren (Gun.js). PvP vil ikke fungere.");
+        }
+        
+        let myId = sessionStorage.getItem('vg_uuid');
+        if(!myId) { myId = crypto.randomUUID(); sessionStorage.setItem('vg_uuid', myId); }
 
         window.onload = function() {
             lucide.createIcons();
-            loadState();
-            if (state.isLoggedIn) {
-                showDashboard();
+            
+            // Check local persistence first
+            const local = localStorage.getItem('vg_gambling_data_v6');
+            if(local) {
+                const parsed = JSON.parse(local);
+                // If we have a saved username/login, we trust it for "auto-login"
+                if(parsed.isLoggedIn && parsed.username) {
+                    state = parsed;
+                    // Attempt to fetch fresh data from Gun, but don't block
+                    if(gun) {
+                        gun.get('users').get(state.username).once((data) => {
+                            if(data) {
+                                // Sync found!
+                                if(data.balance) state.balance = data.balance;
+                                if(data.inventory) state.inventory = JSON.parse(data.inventory || "[]");
+                                saveState(); // re-save locally
+                                updateUI();
+                            }
+                        });
+                    }
+                    showDashboard();
+                } else {
+                    document.getElementById('landing-page').style.display = 'flex';
+                }
             } else {
                 document.getElementById('landing-page').style.display = 'flex';
             }
-            
+
             generateWheelIcons();
-            initScratchCard();
+            initMines();
         };
 
-        function loadState() {
-            const saved = localStorage.getItem('vg_gambling_data_v6'); 
-            if (saved) state = JSON.parse(saved);
+        function showDashboard() {
+            document.getElementById('landing-page').style.display = 'none';
+            document.getElementById('dashboard').classList.remove('hidden');
+            document.getElementById('dashboard').style.display = 'flex';
+            updateUI();
         }
 
         function saveState() {
+            // Dual Save: Local + Gun (Unencrypted)
             localStorage.setItem('vg_gambling_data_v6', JSON.stringify(state));
+            
+            if(gun && state.username) {
+                // Storing plain data under 'users/username'
+                gun.get('users').get(state.username).put({
+                    username: state.username, // keep for ref
+                    password: state.password, // Stored plain as requested
+                    balance: state.balance,
+                    inventory: JSON.stringify(state.inventory),
+                    hasClaimedBonus: state.hasClaimedBonus
+                });
+            }
             updateUI();
         }
 
         function updateUI() {
             document.getElementById('display-username').textContent = state.username;
             document.getElementById('user-balance').innerText = state.balance + ' kr'; 
+            document.getElementById('settings-username').innerText = state.username || '-';
             renderInventory();
         }
 
         function renderInventory() {
-            const container = document.getElementById('inventory-list');
-            if (state.inventory.length === 0) {
-                container.innerHTML = `<div class="col-span-full text-center py-8 text-slate-500 bg-slate-800/50 rounded-lg border border-slate-800 border-dashed">Sekken er tom. Spill på hjulet for å vinne!</div>`;
-                return;
-            }
-            container.innerHTML = state.inventory.map(item => `
-                <div class="bg-slate-700 p-3 rounded border border-slate-600 text-center text-sm shadow">
-                    <div class="text-2xl mb-1">${item.icon}</div>
-                    <div class="font-semibold text-slate-200 truncate">${item.name}</div>
-                </div>
-            `).join('');
+            const el = document.getElementById('inventory-list');
+            el.innerHTML = state.inventory.length ? state.inventory.map(i => `<div class="bg-slate-700 p-2 rounded text-center"><div class="text-xl">${i.icon}</div><div class="text-xs truncate">${i.name}</div></div>`).join('') : '<div class="text-slate-500 text-xs col-span-full text-center">Tomt.</div>';
         }
 
-        // --- MODAL SYSTEM ---
-        function openModal(id) {
-            document.getElementById(id).classList.add('active');
-            if(id === 'wheel-modal') {
-                 document.getElementById('wheel-spinner').style.transform = `rotate(0deg)`;
-            }
-            if(id === 'slots-modal') resetSlots();
-            if(id === 'crash-modal') resetCrash();
-            if(id === 'mines-modal') resetMines();
-            if(id === 'race-modal') resetRace();
-            if(id === 'blackjack-modal') resetBlackjackUI();
-            if(id === 'scratch-modal') resetScratch();
-            if(id === 'poker-modal') resetPokerUI();
-            
-            setTimeout(() => lucide.createIcons(), 50);
-        }
-        function closeModal(id) {
-            document.getElementById(id).classList.remove('active');
-            if(id === 'crash-modal') stopCrash();
-        }
-
-        // --- AUTH & FUNDS ---
+        // --- MODAL HELPERS ---
+        function openModal(id) { document.getElementById(id).classList.add('active'); lucide.createIcons(); }
+        function closeModal(id) { document.getElementById(id).classList.remove('active'); }
+        
+        // --- AUTH (SIMPLE) ---
         function handleLogin(e) {
             e.preventDefault();
-            const username = document.getElementById('username-input').value;
             const btn = document.getElementById('login-btn');
-            btn.querySelector('.btn-text').style.display = 'none';
-            btn.querySelector('.feide-loader').style.display = 'block';
+            const username = document.getElementById('username-input').value.trim();
+            const password = document.getElementById('password-input').value.trim();
+
+            if(!username || !password) return alert("Fyll ut begge felt!");
+
+            if(!gun) return alert("Gun.js er ikke lastet. Sjekk nettverk.");
+
+            btn.querySelector('.btn-text').style.display='none'; 
+            btn.querySelector('.feide-loader').style.display='block';
             
-            setTimeout(() => {
-                btn.querySelector('.feide-loader').style.display = 'none';
-                btn.querySelector('.feide-success').style.display = 'flex';
-                btn.classList.replace('bg-[#1f4698]', 'bg-green-500');
-                SoundEngine.playCoin();
-                
-                setTimeout(() => {
-                    state.username = username;
-                    state.isLoggedIn = true;
-                    if (!state.hasClaimedBonus) {
-                        state.balance += 500; 
-                        state.hasClaimedBonus = true;
-                        saveState();
-                        setTimeout(() => openModal('bonus-modal'), 500);
+            // Check if user exists
+            gun.get('users').get(username).once((data) => {
+                if(data && data.password) {
+                    // User exists, check password
+                    if(data.password === password) {
+                        // Success
+                        finishLogin(data);
+                    } else {
+                        // Fail
+                        alert("Feil passord!");
+                        btn.querySelector('.btn-text').style.display='block'; 
+                        btn.querySelector('.feide-loader').style.display='none';
                     }
-                    saveState();
-                    closeModal('login-modal');
-                    showDashboard();
+                } else {
+                    // User does not exist, CREATE IT
+                    const newUser = {
+                        username: username,
+                        password: password,
+                        balance: 500, // Bonus logic handled here ideally or later
+                        inventory: "[]",
+                        hasClaimedBonus: true
+                    };
+                    // Save to network
+                    gun.get('users').get(username).put(newUser);
                     
-                    btn.querySelector('.btn-text').style.display = 'block';
-                    btn.querySelector('.feide-success').style.display = 'none';
-                    btn.classList.replace('bg-green-500', 'bg-[#1f4698]');
-                }, 800);
-            }, 1000);
+                    // Show "Created" msg (optional), then login
+                    finishLogin(newUser);
+                }
+            });
         }
 
-        function logout() {
-            state.isLoggedIn = false;
-            saveState();
-            location.reload();
-        }
-        function resetData() {
-            localStorage.removeItem('vg_gambling_data_v6');
-            location.reload();
-        }
-        function showDashboard() {
-            document.getElementById('landing-page').style.display = 'none';
-            document.getElementById('dashboard').style.display = 'flex';
-            document.getElementById('dashboard').classList.remove('hidden');
-            updateUI();
-        }
-
-        function processFunds() {
-            const school = document.getElementById('fund-school').value;
-            const teacher = document.getElementById('fund-teacher').value;
-            const amount = parseInt(document.getElementById('fund-amount').value);
-            
-            if(!school || !teacher) return alert("Fyll ut skole og lærer!");
-            if(!amount || amount <= 0) return alert("Skriv inn et gyldig beløp!");
-
-            const btn = document.getElementById('fund-btn');
-            document.getElementById('fund-text').style.display = 'none';
-            document.getElementById('fund-spin').style.display = 'block';
+        function finishLogin(userData) {
+            const btn = document.getElementById('login-btn');
+            btn.querySelector('.feide-loader').style.display='none';
+            btn.querySelector('.feide-success').style.display='flex';
             
             setTimeout(() => {
-                state.balance += amount; 
+                state.username = userData.username;
+                state.password = userData.password; // Store locall too to re-save
+                state.balance = userData.balance !== undefined ? userData.balance : 0;
+                state.inventory = userData.inventory ? JSON.parse(userData.inventory) : [];
+                state.hasClaimedBonus = userData.hasClaimedBonus;
+                state.isLoggedIn = true;
+                
+                // Show bonus modal if brand new (simulated via local state check mostly, but if forced from gun data)
+                // If creating new user, we set balance 500 directly.
+                // We'll just show the modal if it was a fresh creation visual
+                if(state.balance === 500 && state.inventory.length === 0) {
+                     setTimeout(() => openModal('bonus-modal'), 500);
+                }
+
                 saveState();
-                SoundEngine.playWin();
-                
-                document.getElementById('fund-spin').style.display = 'none';
-                document.getElementById('fund-text').style.display = 'block';
-                document.getElementById('fund-teacher-display').textContent = teacher;
-                document.getElementById('fund-success').classList.remove('hidden');
-                
-                setTimeout(() => {
-                    document.getElementById('fund-success').classList.add('hidden');
-                    closeModal('add-funds-modal');
-                    document.getElementById('fund-amount').value = '';
-                }, 2000);
+                closeModal('login-modal');
+                showDashboard();
+            }, 800);
+        }
+
+        function logout() { 
+            state.isLoggedIn = false; 
+            localStorage.removeItem('vg_gambling_data_v6'); 
+            location.reload(); 
+        }
+        
+        function resetData() { 
+            if(confirm("Dette sletter kun lokal info. Brukeren din på nettverket består.")) {
+                logout();
+            }
+        }
+        
+        function processFunds() {
+            const amount = parseInt(document.getElementById('fund-amount').value);
+            if(!amount || amount <= 0) return alert("Ugyldig beløp");
+            const btn = document.getElementById('fund-btn');
+            btn.innerHTML = `<i data-lucide="loader-2" class="animate-spin"></i> Sender...`;
+            lucide.createIcons();
+            setTimeout(() => {
+                state.balance += amount;
+                saveState();
+                closeModal('add-funds-modal');
+                SoundEngine.play('coin');
+                btn.innerHTML = `<span id="fund-text">Send Faktura</span>`;
+                alert(`Faktura på ${amount} kr sendt til skolen. (Beløp lagt til).`);
             }, 1500);
         }
 
-        // --- CLAIM PRIZES ---
+        // --- CLAIM PRIZES FIX ---
         function claimPrizes() {
             const school = document.getElementById('claim-school').value;
-            
             if(!school) return alert("Skriv inn navnet på skolen!");
             
             if(state.inventory.length === 0) {
@@ -998,423 +810,408 @@
             }
 
             const itemCount = state.inventory.length;
-            
-            // Clear inventory
             state.inventory = [];
             saveState();
             
-            SoundEngine.playWin();
+            SoundEngine.play('win');
             alert(`Suksess! ${itemCount} premier er pakket og sendt til ${school}.`);
-            
             closeModal('claim-prize-modal');
             document.getElementById('claim-school').value = ''; 
         }
 
-        // --- WHEEL GAME ---
-        let isSpinning = false;
-        const wheelPrizes = [
-            { name: "Energidrikk", icon: "cup-soda", color: "#f97316" }, 
-            { name: "MacBook Air", icon: "laptop", color: "#ef4444" }, 
-            { name: "Gammelt Eple", icon: "apple", color: "#3b82f6" }, 
-            { name: "Penn & Papir", icon: "pencil", color: "#22c55e" }, 
-            { name: "Akademiet Sekk", icon: "backpack", color: "#eab308" }, 
-            { name: "Energidrikk", icon: "cup-soda", color: "#a855f7" }, 
-            { name: "Gaming Headset", icon: "headphones", color: "#ec4899" }, 
-            { name: "Penn & Papir", icon: "pencil", color: "#6366f1" } 
-        ];
-
-        function generateWheelIcons() {
-            const spinner = document.getElementById('wheel-spinner');
-            const oldIcons = spinner.querySelectorAll('.wheel-icon');
-            oldIcons.forEach(el => el.remove());
-            
-            wheelPrizes.forEach((prize, i) => {
-                const el = document.createElement('div');
-                el.className = 'wheel-icon';
-                el.style.transform = `rotate(${i * 45 + 22.5}deg)`; 
-                el.innerHTML = `<i data-lucide="${prize.icon}" class="w-8 h-8 mb-1"></i>`;
-                spinner.appendChild(el);
-            });
-            lucide.createIcons();
+        // --- LOBBY SYSTEM ---
+        function openLobby() {
+            openModal('lobby-modal');
+            listPublicRooms();
         }
-
-        function spinWheel() {
-            if(isSpinning || state.balance < 100) return;
-            state.balance -= 100;
-            saveState();
-            isSpinning = true;
-            SoundEngine.playSpin();
-
-            const spinner = document.getElementById('wheel-spinner');
-            
-            const extraDeg = Math.floor(Math.random() * 360);
-            const totalDeg = 1800 + extraDeg; 
-            
-            spinner.style.transform = `rotate(-${totalDeg}deg)`;
-            
-            setTimeout(() => {
-                isSpinning = false;
-                const actualDeg = extraDeg % 360;
-                const winningIndex = Math.floor(actualDeg / 45);
-                
-                const prize = wheelPrizes[winningIndex];
-                
-                handleWin(prize.name === "MacBook Air" ? 10000 : 0, prize.name, prize.icon);
-                state.inventory.push({name: prize.name, icon: prize.icon}); 
-                saveState();
-                
-            }, 5000); 
-        }
-
-        function handleWin(amount, itemName, iconName) {
-            // FIXED: Ensure money is added
-            if (amount && amount > 0) {
-                state.balance += amount;
-                saveState();
-            }
-
-            SoundEngine.playWin();
-            let msg = "";
-            if(amount > 0) msg = `Du vant ${amount} kr!`;
-            else msg = `Du vant ${itemName}!`;
-            
-            document.getElementById('win-message').innerText = msg;
-            openModal('win-modal');
-        }
-
-        // --- SLOTS GAME ---
-        const slotIcons = [
-            '<i data-lucide="cherry" class="w-8 h-8 md:w-12 md:h-12 text-red-500"></i>',
-            '<i data-lucide="gem" class="w-8 h-8 md:w-12 md:h-12 text-blue-400"></i>',
-            '<i data-lucide="bell" class="w-8 h-8 md:w-12 md:h-12 text-yellow-400"></i>',
-            '<i data-lucide="grape" class="w-8 h-8 md:w-12 md:h-12 text-purple-500"></i>',
-            '<i data-lucide="laptop" class="w-8 h-8 md:w-12 md:h-12 text-gray-200"></i>'
-        ];
-        
-        function resetSlots() {
-            ['reel-1','reel-2','reel-3'].forEach(id => {
-                document.getElementById(id).innerHTML = slotIcons[0];
-            });
-            lucide.createIcons();
-        }
-
-        function spinSlots() {
-            if(state.balance < 50) return alert("Tom for penger");
-            state.balance -= 50;
-            saveState();
-
-            let spins = 0;
-            const interval = setInterval(() => {
-                spins++;
-                ['reel-1','reel-2','reel-3'].forEach(id => {
-                     document.getElementById(id).innerHTML = slotIcons[Math.floor(Math.random()*5)];
-                });
-                lucide.createIcons();
-                
-                if(spins > 20) {
-                    clearInterval(interval);
-                    const r1_idx = Math.floor(Math.random()*5);
-                    const r2_idx = Math.random() > 0.7 ? r1_idx : Math.floor(Math.random()*5);
-                    const r3_idx = Math.random() > 0.8 ? r1_idx : Math.floor(Math.random()*5);
-
-                    document.getElementById('reel-1').innerHTML = slotIcons[r1_idx];
-                    document.getElementById('reel-2').innerHTML = slotIcons[r2_idx];
-                    document.getElementById('reel-3').innerHTML = slotIcons[r3_idx];
-                    lucide.createIcons();
-
-                    if(r1_idx === r2_idx && r2_idx === r3_idx) {
-                        let win = 500;
-                        if(r1_idx === 4) win = 5000;
-                        if(r1_idx === 1) win = 1000; 
-                        handleWin(win);
-                    } else {
-                        SoundEngine.playLoss();
-                    }
-                }
-            }, 100);
-        }
-
-        // --- SCRATCH CARD ---
-        let scratchCtx;
-        let scratchCanvas = document.getElementById('scratch-canvas');
-        let scratchValues = [];
-        let isScratching = false;
-
-        function initScratchCard() {
-             scratchCanvas = document.getElementById('scratch-canvas');
-             scratchCtx = scratchCanvas.getContext('2d');
-             
-             const start = () => isScratching = true;
-             const end = () => {
-                 isScratching = false;
-                 checkScratchWin();
-             };
-             const move = (e) => {
-                 if(!isScratching) return;
-                 e.preventDefault();
-                 const rect = scratchCanvas.getBoundingClientRect();
-                 const x = (e.clientX || e.touches[0].clientX) - rect.left;
-                 const y = (e.clientY || e.touches[0].clientY) - rect.top;
-                 scratch(x, y);
-             };
-
-             scratchCanvas.addEventListener('mousedown', start);
-             scratchCanvas.addEventListener('touchstart', start);
-             window.addEventListener('mouseup', end);
-             window.addEventListener('touchend', end);
-             scratchCanvas.addEventListener('mousemove', move);
-             scratchCanvas.addEventListener('touchmove', move);
-        }
-
-        function resetScratch() {
-             const btn = document.getElementById('scratch-btn');
-             btn.disabled = false;
-             btn.classList.remove('opacity-50');
-             btn.innerText = "Kjøp Lodd (50 kr)";
-             btn.onclick = buyScratch; 
-             
-             scratchCanvas.style.pointerEvents = 'none'; 
-             scratchCtx.globalCompositeOperation = 'source-over';
-             scratchCtx.fillStyle = '#94a3b8'; 
-             scratchCtx.fillRect(0,0,300,300);
-             
-             scratchCtx.fillStyle = '#334155';
-             scratchCtx.font = "bold 30px Arial";
-             scratchCtx.textAlign = "center";
-             scratchCtx.fillText("SKRAP HER", 150, 150);
-             
-             document.getElementById('scratch-grid').innerHTML = "";
-        }
-
-        function buyScratch() {
-             if(state.balance < 50) return alert("Tom for penger");
-             state.balance -= 50;
-             saveState();
-             
-             const btn = document.getElementById('scratch-btn');
-             btn.disabled = true;
-             btn.classList.add('opacity-50');
-             btn.innerText = "Skrap i vei!";
-             
-             scratchCanvas.style.pointerEvents = 'auto'; 
-             
-             const grid = document.getElementById('scratch-grid');
-             grid.innerHTML = '';
-             const amounts = [10, 50, 50, 50, 100, 100, 500];
-             scratchValues = [];
-             
-             const isWin = Math.random() < 0.2;
-             const winVal = amounts[Math.floor(Math.random()*amounts.length)];
-             
-             let cells = [];
-             if(isWin) cells = [winVal, winVal, winVal];
-             while(cells.length < 9) cells.push(amounts[Math.floor(Math.random()*amounts.length)]);
-             if(!isWin) cells.sort(() => Math.random() - 0.5);
-             
-             cells.forEach(val => {
-                 grid.innerHTML += `<div class="scratch-cell">${val} kr</div>`;
-             });
-             scratchValues = cells;
-        }
-
-        function scratch(x, y) {
-            scratchCtx.globalCompositeOperation = 'destination-out';
-            scratchCtx.beginPath();
-            scratchCtx.arc(x, y, 20, 0, Math.PI * 2);
-            scratchCtx.fill();
-        }
-
-        function checkScratchWin() {
-            const imageData = scratchCtx.getImageData(0,0,300,300);
-            let clearPixels = 0;
-            for(let i=3; i<imageData.data.length; i+=4) {
-                if(imageData.data[i] === 0) clearPixels++;
-            }
-            const percent = (clearPixels / (300*300)) * 100;
-            
-            if(percent > 40 && document.getElementById('scratch-btn').disabled) {
-                 scratchCtx.clearRect(0,0,300,300);
-                 const counts = {};
-                 scratchValues.forEach(v => counts[v] = (counts[v] || 0) + 1);
-                 let win = 0;
-                 for(let v in counts) {
-                     if(counts[v] >= 3) win = Math.max(win, parseInt(v));
-                 }
-                 
-                 if(win > 0) handleWin(win); else SoundEngine.playLoss();
-                 
-                 const btn = document.getElementById('scratch-btn');
-                 btn.innerText = "Spill igjen";
-                 btn.disabled = false;
-                 btn.classList.remove('opacity-50');
-                 btn.onclick = resetScratch; 
-                 scratchCanvas.style.pointerEvents = 'none';
-            }
-        }
-
-        // --- CRASH GAME ---
-        let crashMultiplier = 1.00;
-        let crashRunning = false;
-        let crashInterval;
-        let crashCanvasElement;
-        let crashCtx;
-
-        function initCrash() {
-            crashCanvasElement = document.getElementById('crash-canvas');
-            if(crashCanvasElement) crashCtx = crashCanvasElement.getContext('2d');
-        }
-        
-        function resetCrash() {
-            initCrash();
-            crashCanvasElement.width = crashCanvasElement.offsetWidth;
-            crashCanvasElement.height = crashCanvasElement.offsetHeight;
-            crashCtx.clearRect(0,0,crashCanvasElement.width, crashCanvasElement.height);
-            const display = document.getElementById('crash-multiplier');
-            display.innerText = "1.00x";
-            display.className = "absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 text-5xl font-bold text-white font-mono";
-            
-            const btn = document.getElementById('crash-btn');
-            btn.innerText = "START EKSAMEN (100 kr)";
-            btn.classList.remove('bg-yellow-500');
-            btn.classList.add('bg-green-600');
-            btn.disabled = false;
-            btn.onclick = playCrash; 
-        }
-        
-        function playCrash() {
-            if(state.balance < 100) return alert("Tom for penger");
-            state.balance -= 100;
-            saveState();
-            
-            initCrash();
-            crashRunning = true;
-            crashMultiplier = 1.00;
-            let x = 0; 
-            let y = crashCanvasElement.height;
-            const crashPoint = 1 + Math.random() * 5; 
-
-            const btn = document.getElementById('crash-btn');
-            btn.innerText = "HOPP AV (CASH OUT)";
-            btn.classList.replace('bg-green-600', 'bg-yellow-500');
-            btn.onclick = cashoutCrash; 
-
-            crashCtx.beginPath();
-            crashCtx.moveTo(0, crashCanvasElement.height);
-
-            crashInterval = setInterval(() => {
-                crashMultiplier += 0.01;
-                document.getElementById('crash-multiplier').innerText = crashMultiplier.toFixed(2) + "x";
-                
-                x += 1;
-                y -= 0.5; 
-                crashCtx.lineTo(x, y);
-                crashCtx.strokeStyle = "#ef4444";
-                crashCtx.lineWidth = 3;
-                crashCtx.stroke();
-
-                if(crashMultiplier >= crashPoint) {
-                    crash(false);
-                }
-            }, 50);
-        }
-        
-        function cashoutCrash() {
-            if(!crashRunning) return;
-            clearInterval(crashInterval);
-            crashRunning = false;
-            const win = Math.floor(100 * crashMultiplier);
-            handleWin(win);
-            resetCrash();
-        }
-        
-        function crash(userAction) {
-             clearInterval(crashInterval);
-             crashRunning = false;
-             SoundEngine.playLoss();
-             const display = document.getElementById('crash-multiplier');
-             display.innerText = "STRØK! (CRASH)";
-             display.classList.add('text-red-500');
-             setTimeout(resetCrash, 2000);
-        }
-        
-        function stopCrash() { clearInterval(crashInterval); crashRunning = false; }
-
-        // --- MINES GAME ---
-        let minesActive = false;
-        let minesMultiplier = 1.0;
-        let minesGrid = []; 
-
-        function resetMines() {
-            const grid = document.getElementById('mines-grid');
-            grid.innerHTML = '';
-            for(let i=0; i<25; i++) {
-                grid.innerHTML += `<div id="mine-${i}" class="w-full h-12 bg-slate-700 rounded cursor-pointer hover:bg-slate-600 border border-slate-600 transition-colors" onclick="clickMine(${i})"></div>`;
-            }
-            document.getElementById('mines-start').disabled = false;
-            document.getElementById('mines-cashout').disabled = true;
-            document.getElementById('mines-cashout').classList.add('opacity-50');
-            minesActive = false;
-        }
-        function startMines() {
-            if(state.balance < 50) return alert("Tom for penger");
-            state.balance -= 50;
-            saveState();
-            minesActive = true;
-            minesMultiplier = 1.0;
-            minesGrid = Array(25).fill(0);
-            let placed = 0;
-            while(placed < 5) {
-                let idx = Math.floor(Math.random() * 25);
-                if(minesGrid[idx] === 0) { minesGrid[idx] = 1; placed++; }
-            }
-            for(let i=0; i<25; i++) {
-                const el = document.getElementById(`mine-${i}`);
-                el.className = "w-full h-12 bg-slate-700 rounded cursor-pointer hover:bg-slate-600 border border-slate-600 transition-colors";
-                el.innerHTML = "";
-            }
-            document.getElementById('mines-start').disabled = true;
-        }
-        function clickMine(idx) {
-            if(!minesActive) return;
-            const el = document.getElementById(`mine-${idx}`);
-            if(el.classList.contains('bg-slate-800')) return; 
-
-            if(minesGrid[idx] === 1) {
-                el.classList.remove('bg-slate-700');
-                el.classList.add('bg-red-500');
-                el.innerHTML = '<i data-lucide="bomb" class="w-6 h-6 mx-auto mt-3 text-white"></i>';
-                lucide.createIcons();
-                SoundEngine.playLoss();
-                minesActive = false;
-                setTimeout(() => { alert("Du fikk anmerkning (Tapte)!"); resetMines(); }, 500);
+        function switchTab(tab) {
+            if(tab === 'list') {
+                document.getElementById('view-list').classList.remove('hidden');
+                document.getElementById('view-host').classList.add('hidden');
+                document.getElementById('tab-list').className = "flex-1 py-3 text-sm font-bold text-blue-400 border-b-2 border-blue-400 bg-slate-800";
+                document.getElementById('tab-host').className = "flex-1 py-3 text-sm font-bold text-slate-400 hover:text-slate-200";
+                listPublicRooms();
             } else {
-                el.classList.remove('bg-slate-700');
-                el.classList.add('bg-green-600');
-                minesMultiplier += 0.2;
-                document.getElementById('mines-next-reward').innerText = minesMultiplier.toFixed(1) + "x";
-                SoundEngine.playCoin();
-                document.getElementById('mines-cashout').disabled = false;
-                document.getElementById('mines-cashout').classList.remove('opacity-50');
+                document.getElementById('view-list').classList.add('hidden');
+                document.getElementById('view-host').classList.remove('hidden');
+                document.getElementById('tab-list').className = "flex-1 py-3 text-sm font-bold text-slate-400 hover:text-slate-200";
+                document.getElementById('tab-host').className = "flex-1 py-3 text-sm font-bold text-blue-400 border-b-2 border-blue-400 bg-slate-800";
             }
         }
-        function cashoutMines() {
-            if(!minesActive) return;
-            const win = Math.floor(50 * minesMultiplier);
-            handleWin(win);
-            minesActive = false;
-            resetMines();
+
+        function createPublicRoom() {
+            const name = document.getElementById('host-name').value || "Ukjent Rom";
+            const game = document.getElementById('host-game').value;
+            const bet = parseInt(document.getElementById('host-bet').value) || 100;
+            
+            const roomId = "PUB_" + Math.random().toString(36).substr(2, 6).toUpperCase();
+            
+            // Initial Room Data
+            if(appScope) {
+                appScope.get('public_rooms').get(roomId).put({
+                    id: roomId,
+                    name: name,
+                    game: game,
+                    bet: bet,
+                    host: state.username,
+                    players: 0,
+                    lastActive: Date.now()
+                });
+            }
+
+            // Auto-join
+            document.getElementById('pvp-room-code').value = roomId;
+            document.getElementById('pvp-bet').value = bet;
+            
+            closeModal('lobby-modal');
+            
+            // Trigger join logic
+            setTimeout(() => {
+                pvpGameType = game; // Set global
+                joinPvPRoom(true); // true = bypass bet check visual (handled inside)
+            }, 500);
         }
 
-        // --- BLACKJACK ---
+        function listPublicRooms() {
+            const container = document.getElementById('rooms-container');
+            container.innerHTML = "";
+            let found = false;
+            
+            if(!appScope) return;
+
+            appScope.get('public_rooms').map().once((data, id) => {
+                if(!data || !data.id) return;
+                
+                // Cleanup: Check if inactive > 5 mins (300000ms)
+                if(Date.now() - data.lastActive > 300000) return;
+
+                found = true;
+                const isFull = data.players >= 2;
+                const gameNames = {rps: "Stein Saks Papir", card: "Høyeste Kort", dice: "Terning-Duell"};
+                
+                const el = document.createElement('div');
+                el.className = `room-item bg-slate-800 border ${isFull ? 'border-red-900 opacity-60' : 'border-slate-700'} p-4 rounded-lg flex justify-between items-center transition-all cursor-pointer`;
+                el.onclick = () => {
+                    if(isFull) return alert("Rommet er fullt!");
+                    document.getElementById('pvp-room-code').value = data.id;
+                    document.getElementById('pvp-bet').value = data.bet;
+                    pvpGameType = data.game;
+                    closeModal('lobby-modal');
+                    joinPvPRoom(true);
+                };
+
+                el.innerHTML = `
+                    <div>
+                        <div class="font-bold text-white">${data.name}</div>
+                        <div class="text-xs text-slate-400">${gameNames[data.game] || data.game} • <span class="text-green-400">${data.bet} kr</span></div>
+                    </div>
+                    <div class="text-right">
+                        <div class="text-xs font-bold ${isFull ? 'text-red-500' : 'text-blue-400'}">${data.players}/2</div>
+                        <div class="text-[10px] text-slate-600">${data.id}</div>
+                    </div>
+                `;
+                container.appendChild(el);
+            });
+            
+            // Fallback text if Gun is slow or empty (visual only)
+            setTimeout(() => {
+                if(container.innerHTML === "") container.innerHTML = `<div class="text-center text-slate-500 text-sm">Ingen åpne rom funnet. Lag et selv!</div>`;
+            }, 1000);
+        }
+
+        // --- PVP LOGIC ---
+        let pvpRoom = null;
+        let pvpGameType = ''; // 'rps', 'card', 'dice'
+        let pvpBet = 0;
+        let pvpSub = null;
+        let playerNum = 0; // 1 or 2
+        let currentRoomId = null;
+
+        function openPvPSetup(type) {
+            pvpGameType = type;
+            document.getElementById('pvp-title').innerText = type === 'dice' ? 'Terning-Duell' : (type === 'rps' ? 'Stein Saks Papir' : 'Høyeste Kort');
+            openModal('pvp-setup-modal');
+        }
+        function openLobbyFromSetup() { closeModal('pvp-setup-modal'); openLobby(); }
+        function togglePrivateSetup() { document.getElementById('private-setup-form').classList.toggle('hidden'); }
+
+        function joinPvPRoom(fromLobby = false) {
+            const code = document.getElementById('pvp-room-code').value.trim().toUpperCase();
+            const bet = parseInt(document.getElementById('pvp-bet').value);
+            
+            if(!code) return alert("Mangler rom-kode!");
+            if(state.balance < bet) return alert("Du har ikke nok penger!");
+            if(!appScope) return alert("PvP er deaktivert (Gun.js blokkert).");
+
+            // Deduct bet
+            state.balance -= bet;
+            saveState();
+            pvpBet = bet;
+            currentRoomId = code;
+
+            // Check if Public Room node exists to update player count
+            if(code.startsWith('PUB_')) {
+                 const pubNode = appScope.get('public_rooms').get(code);
+                 pubNode.once(d => {
+                     if(d && d.players < 2) {
+                         pubNode.get('players').put(d.players + 1);
+                         pubNode.get('lastActive').put(Date.now()); // heartbeat on join
+                     }
+                 });
+                 // Start heartbeat loop
+                 setInterval(() => {
+                     appScope.get('public_rooms').get(code).get('lastActive').put(Date.now());
+                 }, 60000);
+            }
+
+            pvpRoom = appScope.get('rooms').get(code);
+            closeModal('pvp-setup-modal');
+            
+            if(pvpGameType === 'rps') {
+                openModal('pvp-rps-modal');
+                document.getElementById('rps-room-display').innerText = code;
+                document.getElementById('rps-pot').innerText = bet * 2;
+                initRPSGame();
+            } else if (pvpGameType === 'card') {
+                openModal('pvp-card-modal');
+                document.getElementById('card-room-display').innerText = code;
+                document.getElementById('card-pot').innerText = bet * 2;
+                initCardGame();
+            } else if (pvpGameType === 'dice') {
+                openModal('pvp-dice-modal');
+                document.getElementById('dice-room-display').innerText = code;
+                document.getElementById('dice-pot').innerText = bet * 2;
+                initDiceGame();
+            }
+        }
+
+        function leavePvP() {
+            // Decrement player count if public
+            if(currentRoomId && currentRoomId.startsWith('PUB_') && appScope) {
+                const n = appScope.get('public_rooms').get(currentRoomId);
+                n.once(d => { if(d && d.players > 0) n.get('players').put(d.players - 1); });
+            }
+            alert("Du forlot kampen. Innsatsen er tapt.");
+            location.reload(); 
+        }
+
+        // --- GAME: RPS ---
+        function initRPSGame() {
+            const rpsNode = pvpRoom.get('rps_round_' + Math.floor(Date.now() / 600000));
+            rpsNode.get('p1').once((d) => {
+                if(!d || (Date.now() - d.ts > 10000)) { playerNum = 1; rpsNode.get('p1').put({id: myId, ts: Date.now(), move: false}); document.getElementById('rps-status').innerText = "Venter på motstander..."; } 
+                else if (d.id !== myId) { playerNum = 2; rpsNode.get('p2').put({id: myId, ts: Date.now(), move: false}); document.getElementById('rps-status').innerText = "Spiller 2 tilkoblet!"; } 
+                else playerNum = 1;
+            });
+            pvpSub = rpsNode.on((data) => {
+                if(!data || !data.p1 || !data.p2) return;
+                const myMove = playerNum === 1 ? data.p1.move : data.p2.move;
+                const opMove = playerNum === 1 ? data.p2.move : data.p1.move;
+
+                if(!myMove && !opMove) { document.getElementById('rps-status').innerText = "Velg ditt trekk!"; document.getElementById('rps-controls').classList.remove('hidden'); document.getElementById('rps-result-area').classList.add('hidden'); } 
+                else if (myMove && !opMove) { document.getElementById('rps-status').innerText = "Venter på motstander..."; document.getElementById('rps-controls').classList.add('hidden'); }
+                else if (myMove && opMove) { resolveRPS(myMove, opMove); }
+            });
+        }
+        function makeRPSMove(move) {
+            const rpsNode = pvpRoom.get('rps_round_' + Math.floor(Date.now() / 600000));
+            if(playerNum === 1) rpsNode.get('p1').get('move').put(move); else rpsNode.get('p2').get('move').put(move);
+        }
+        function resolveRPS(myMove, opMove) {
+            document.getElementById('rps-controls').classList.add('hidden'); document.getElementById('rps-result-area').classList.remove('hidden');
+            const icons = {rock: 'gem', paper: 'file', scissors: 'scissors'};
+            document.getElementById('my-move-display').innerHTML = `<i data-lucide="${icons[myMove]}" class="w-12 h-12 text-blue-300"></i>`;
+            document.getElementById('op-move-display').innerHTML = `<i data-lucide="${icons[opMove]}" class="w-12 h-12 text-red-300"></i>`;
+            lucide.createIcons();
+            let result = (myMove === opMove) ? 'draw' : ((myMove=='rock'&&opMove=='scissors')||(myMove=='paper'&&opMove=='rock')||(myMove=='scissors'&&opMove=='paper')) ? 'win' : 'lose';
+            handlePvPResult(result, 'rps-status');
+        }
+
+        // --- GAME: HIGH CARD ---
+        function initCardGame() {
+            const node = pvpRoom.get('card_round_' + Math.floor(Date.now() / 600000));
+            node.get('p1').once((d) => {
+                if(!d || (Date.now() - d.ts > 10000)) { playerNum = 1; node.get('p1').put({id: myId, ts: Date.now(), card: 0}); document.getElementById('card-status').innerText = "Venter på motstander..."; } 
+                else if (d.id !== myId) { playerNum = 2; node.get('p2').put({id: myId, ts: Date.now(), card: 0}); document.getElementById('card-status').innerText = "Spiller 2 tilkoblet!"; } 
+                else playerNum = 1;
+            });
+            node.on((data) => {
+                if(!data || !data.p1 || !data.p2) return;
+                const myCard = playerNum === 1 ? data.p1.card : data.p2.card;
+                const opCard = playerNum === 1 ? data.p2.card : data.p1.card;
+                if(myCard === 0 && opCard === 0) { document.getElementById('card-controls').classList.remove('hidden'); document.getElementById('card-result-area').classList.add('hidden'); }
+                else if (myCard > 0 && opCard === 0) { document.getElementById('card-status').innerText = "Venter på motstander..."; document.getElementById('card-controls').classList.add('hidden'); }
+                else if (myCard > 0 && opCard > 0) { resolveCardGame(myCard, opCard); }
+            });
+        }
+        function drawPvPCard() {
+            const val = Math.ceil(Math.random() * 13) + 1; 
+            const node = pvpRoom.get('card_round_' + Math.floor(Date.now() / 600000));
+            if(playerNum === 1) node.get('p1').get('card').put(val); else node.get('p2').get('card').put(val);
+        }
+        function resolveCardGame(my, op) {
+            document.getElementById('card-controls').classList.add('hidden'); document.getElementById('card-result-area').classList.remove('hidden');
+            const map = {11:'J', 12:'Q', 13:'K', 14:'A'};
+            document.getElementById('my-card-display').innerText = map[my] || my; document.getElementById('op-card-display').innerText = map[op] || op;
+            document.getElementById('op-card-display').className = "w-24 h-36 bg-white rounded-lg flex items-center justify-center text-black font-bold text-2xl border-4 border-slate-500 transform rotate-3";
+            let res = (my > op) ? 'win' : (my < op) ? 'lose' : 'draw';
+            handlePvPResult(res, 'card-status');
+        }
+
+        // --- GAME: DICE DUEL ---
+        function initDiceGame() {
+            const node = pvpRoom.get('dice_round_' + Math.floor(Date.now() / 600000));
+            node.get('p1').once((d) => {
+                if(!d || (Date.now() - d.ts > 10000)) { playerNum = 1; node.get('p1').put({id: myId, ts: Date.now(), val: 0, rolls: "0,0,0"}); document.getElementById('dice-status').innerText = "Venter på motstander..."; }
+                else if (d.id !== myId) { playerNum = 2; node.get('p2').put({id: myId, ts: Date.now(), val: 0, rolls: "0,0,0"}); document.getElementById('dice-status').innerText = "Spiller 2 tilkoblet!"; }
+                else playerNum = 1;
+            });
+            node.on((data) => {
+                if(!data || !data.p1 || !data.p2) return;
+                const myD = playerNum === 1 ? data.p1 : data.p2;
+                const opD = playerNum === 1 ? data.p2 : data.p1;
+                
+                if(myD.val === 0 && opD.val === 0) { document.getElementById('dice-controls').classList.remove('hidden'); document.getElementById('dice-result-area').classList.add('hidden'); }
+                else if (myD.val > 0 && opD.val === 0) { document.getElementById('dice-status').innerText = "Venter på motstander..."; document.getElementById('dice-controls').classList.add('hidden'); }
+                else if (myD.val > 0 && opD.val > 0) { resolveDiceGame(myD, opD); }
+            });
+        }
+        function rollPvPDice() {
+            const r1 = Math.ceil(Math.random()*6); const r2 = Math.ceil(Math.random()*6); const r3 = Math.ceil(Math.random()*6);
+            const sum = r1+r2+r3;
+            const node = pvpRoom.get('dice_round_' + Math.floor(Date.now() / 600000));
+            const data = {val: sum, rolls: `${r1},${r2},${r3}`};
+            if(playerNum === 1) node.get('p1').put(data); else node.get('p2').put(data);
+        }
+        function resolveDiceGame(my, op) {
+            document.getElementById('dice-controls').classList.add('hidden'); document.getElementById('dice-result-area').classList.remove('hidden');
+            document.getElementById('my-dice-val').innerText = my.val; document.getElementById('op-dice-val').innerText = op.val;
+            document.getElementById('my-dice-details').innerText = `(${my.rolls})`; document.getElementById('op-dice-details').innerText = `(${op.rolls})`;
+            let res = (my.val > op.val) ? 'win' : (my.val < op.val) ? 'lose' : 'draw';
+            handlePvPResult(res, 'dice-status');
+        }
+
+        // --- SHARED PVP UTILS ---
+        function handlePvPResult(result, statusId) {
+            const el = document.getElementById(statusId);
+            if(document.body.classList.contains('paid_pvp')) return;
+            if(result === 'win') {
+                el.innerText = "DU VANT!"; el.classList.add('text-green-500');
+                state.balance += (pvpBet * 2); SoundEngine.play('win');
+            } else if (result === 'lose') {
+                el.innerText = "DU TAPTE..."; el.classList.add('text-red-500');
+                SoundEngine.play('loss');
+            } else {
+                el.innerText = "UAVGJORT! Pengene tilbake.";
+                state.balance += pvpBet;
+            }
+            saveState();
+            document.body.classList.add('paid_pvp');
+            setTimeout(() => document.body.classList.remove('paid_pvp'), 5000);
+        }
+
+        // --- SOLO GAMES (Fixed Slots) ---
+        const wheelPrizes = [{n:"Energidrikk",i:"cup-soda"},{n:"MacBook Air",i:"laptop"},{n:"Gammelt Eple",i:"apple"},{n:"Penn & Papir",i:"pencil"},{n:"Akademiet Sekk",i:"backpack"},{n:"Energidrikk",i:"cup-soda"},{n:"Headset",i:"headphones"},{n:"Penn",i:"pencil"}];
+        function generateWheelIcons() {
+            const s = document.getElementById('wheel-spinner');
+            wheelPrizes.forEach((p,i)=>{ const d=document.createElement('div'); d.className='wheel-icon'; d.style.transform=`rotate(${i*45+22.5}deg)`; d.innerHTML=`<i data-lucide="${p.i}" class="w-8 h-8 mb-1"></i>`; s.appendChild(d); });
+        }
+        function spinWheel() {
+            if(state.balance<100) return alert('Tomt for penger'); state.balance-=100; saveState();
+            const s = document.getElementById('wheel-spinner');
+            const rot = 1800 + Math.floor(Math.random()*360);
+            s.style.transform=`rotate(-${rot}deg)`; SoundEngine.play('spin');
+            setTimeout(()=>{
+                const idx = Math.floor((rot%360)/45); const p = wheelPrizes[idx];
+                document.getElementById('win-message').innerText = p.n === "MacBook Air" ? "DU VANT MACBOOK!" : `Du vant: ${p.n}`;
+                openModal('win-modal'); state.inventory.push({name:p.n, icon: `<i data-lucide="${p.i}"></i>`}); saveState(); SoundEngine.play('win');
+            }, 5000);
+        }
+
+        // Improved Slots Logic
+        function spinSlots() {
+            if(state.balance < 50) return alert("Mangler penger");
+            state.balance -= 50; 
+            saveState();
+
+            const reels = [1,2,3].map(i => document.getElementById(`reel-${i}`));
+            const icons = ['cherry', 'gem', 'bell', 'grape', 'clover'];
+            
+            // Add Blur
+            reels.forEach(r => r.classList.add('slot-spinning'));
+            SoundEngine.play('spin');
+
+            let finalRes = [];
+
+            // Reel 1 stop
+            setTimeout(() => {
+                reels[0].classList.remove('slot-spinning');
+                const r1 = icons[Math.floor(Math.random() * icons.length)];
+                finalRes.push(r1);
+                reels[0].innerHTML = `<i data-lucide="${r1}"></i>`;
+                lucide.createIcons();
+                SoundEngine.play('click');
+
+                // Reel 2 stop
+                setTimeout(() => {
+                    reels[1].classList.remove('slot-spinning');
+                    const r2 = icons[Math.floor(Math.random() * icons.length)];
+                    finalRes.push(r2);
+                    reels[1].innerHTML = `<i data-lucide="${r2}"></i>`;
+                    lucide.createIcons();
+                    SoundEngine.play('click');
+
+                    // Reel 3 stop
+                    setTimeout(() => {
+                        reels[2].classList.remove('slot-spinning');
+                        const r3 = icons[Math.floor(Math.random() * icons.length)];
+                        finalRes.push(r3);
+                        reels[2].innerHTML = `<i data-lucide="${r3}"></i>`;
+                        lucide.createIcons();
+                        SoundEngine.play('click');
+
+                        // Check Win
+                        if(r1 === r2 && r2 === r3) {
+                            setTimeout(() => {
+                                SoundEngine.play('win');
+                                document.getElementById('win-message').innerText = "JACKPOT! 1000kr!";
+                                state.balance += 1000;
+                                saveState();
+                                openModal('win-modal');
+                            }, 300);
+                        } else if (r1 === r2 || r2 === r3 || r1 === r3) {
+                            setTimeout(() => {
+                                SoundEngine.play('coin'); // Small win
+                                state.balance += 50; // Money back
+                                saveState();
+                                // Optional visual for small win
+                            }, 300);
+                        }
+
+                    }, 500);
+                }, 500);
+            }, 1000);
+        }
+
+        // Mines logic
+        let minesActive=false; let minesM=1.0; let minesG=[];
+        function initMines() {
+            document.getElementById('mines-grid').innerHTML = Array(25).fill(0).map((_,i)=>`<div id="mine-${i}" class="w-full h-10 bg-slate-700 rounded cursor-pointer hover:bg-slate-600 border border-slate-600" onclick="clickMine(${i})"></div>`).join('');
+        }
+        function startMines(){
+            if(state.balance<50) return alert("Tomt"); state.balance-=50; saveState(); minesActive=true; minesM=1.0; minesG=Array(25).fill(0);
+            let p=0; while(p<5){ let x=Math.floor(Math.random()*25); if(minesG[x]===0){minesG[x]=1; p++;}}
+            initMines();
+        }
+        function clickMine(i){
+            if(!minesActive)return; const el=document.getElementById(`mine-${i}`);
+            if(minesG[i]===1) { el.classList.add('bg-red-500'); SoundEngine.play('loss'); minesActive=false; alert('BOOM'); }
+            else { el.classList.add('bg-green-500'); minesM+=0.2; document.getElementById('mines-next-reward').innerText=minesM.toFixed(1)+'x'; SoundEngine.play('coin'); document.getElementById('mines-cashout').disabled=false; document.getElementById('mines-cashout').classList.remove('opacity-50'); }
+        }
+        function cashoutMines(){ if(!minesActive)return; state.balance+=Math.floor(50*minesM); saveState(); minesActive=false; alert('Gevinst!'); initMines(); document.getElementById('mines-cashout').disabled=true; document.getElementById('mines-cashout').classList.add('opacity-50'); }
+        
+        // --- BLACKJACK LOGIC ---
         let bjDeck = [], bjPlayerHand = [], bjDealerHand = [], bjActive = false;
-
-        function resetBlackjackUI() {
-            document.getElementById('bj-dealer-cards').innerHTML = '';
-            document.getElementById('bj-player-cards').innerHTML = '';
-            document.getElementById('bj-message').innerText = '';
-            document.getElementById('bj-controls').classList.remove('hidden');
-            document.getElementById('bj-actions').classList.add('hidden');
-        }
 
         function getCard() {
             const vals = ['2','3','4','5','6','7','8','9','10','J','Q','K','A'];
@@ -1432,9 +1229,9 @@
             el.className = `w-16 h-24 bg-white rounded flex flex-col items-center justify-center font-bold border-2 border-gray-300 ${card.color}`;
             let suitIcon = '';
             if(card.suit === '♥') suitIcon = '<i data-lucide="heart" class="w-4 h-4 fill-red-500"></i>';
-            if(card.suit === '♦') suitIcon = '<i data-lucide="diamond" class="w-4 h-4 fill-red-500"></i>';
-            if(card.suit === '♠') suitIcon = '<i data-lucide="spade" class="w-4 h-4 fill-black"></i>';
-            if(card.suit === '♣') suitIcon = '<i data-lucide="club" class="w-4 h-4 fill-black"></i>';
+            else if(card.suit === '♦') suitIcon = '<i data-lucide="diamond" class="w-4 h-4 fill-red-500"></i>';
+            else if(card.suit === '♠') suitIcon = '<i data-lucide="spade" class="w-4 h-4 fill-black"></i>';
+            else if(card.suit === '♣') suitIcon = '<i data-lucide="club" class="w-4 h-4 fill-black"></i>';
             
             el.innerHTML = `<span>${card.val}</span><div class="mt-1">${suitIcon}</div>`;
             document.getElementById(containerId).appendChild(el);
@@ -1453,7 +1250,11 @@
             state.balance -= 100;
             saveState();
             
-            resetBlackjackUI();
+            // Reset UI
+            document.getElementById('bj-dealer-cards').innerHTML = '';
+            document.getElementById('bj-player-cards').innerHTML = '';
+            document.getElementById('bj-message').innerText = '';
+            
             bjPlayerHand = [getCard(), getCard()];
             bjDealerHand = [getCard()]; 
             
@@ -1477,7 +1278,7 @@
                 document.getElementById('bj-message').innerText = "BUST! (Over 21)";
                 document.getElementById('bj-actions').classList.add('hidden');
                 document.getElementById('bj-controls').classList.remove('hidden');
-                SoundEngine.playLoss();
+                SoundEngine.play('loss');
             }
         }
 
@@ -1502,224 +1303,21 @@
             else { msg = "Huset vant."; }
             
             document.getElementById('bj-message').innerText = msg;
-            if(win > 0) handleWin(win); else SoundEngine.playLoss();
+            if(win > 0) { 
+                handleWin(win); 
+                state.balance += win; // Ensure balance updates here if handleWin doesn't
+                saveState();
+            } else { 
+                SoundEngine.play('loss'); 
+            }
             
             document.getElementById('bj-actions').classList.add('hidden');
             document.getElementById('bj-controls').classList.remove('hidden');
         }
 
-        // --- POKER (Jacks or Better) ---
-        let pokerDeck = [], pokerHand = [], heldCards = [false,false,false,false,false], pokerStage = 'deal';
-        
-        function createPokerDeck() {
-            pokerDeck = [];
-            const suits = ['heart', 'diamond', 'club', 'spade'];
-            const vals = ['2','3','4','5','6','7','8','9','10','J','Q','K','A'];
-            for(let s of suits) {
-                for(let v of vals) {
-                    pokerDeck.push({val:v, suit:s});
-                }
-            }
-            // Shuffle
-            for(let i=pokerDeck.length-1; i>0; i--) {
-                const j = Math.floor(Math.random()*(i+1));
-                [pokerDeck[i], pokerDeck[j]] = [pokerDeck[j], pokerDeck[i]];
-            }
-        }
-
-        function resetPokerUI() {
-            pokerStage = 'deal';
-            document.getElementById('deal-btn').innerText = "DEAL (50 kr)";
-            document.getElementById('deal-btn').onclick = dealPoker;
-            document.getElementById('poker-message').innerText = "Lykke til";
-            heldCards = [false,false,false,false,false];
-            for(let i=0; i<5; i++) {
-                const c = document.getElementById(`card-${i}`);
-                c.className = "card bg-blue-800 border-2 border-white";
-                c.innerHTML = '<div class="text-blue-300 opacity-20 text-4xl">?</div>';
-            }
-        }
-
-        function drawPokerCardUI(i, card) {
-            const el = document.getElementById(`card-${i}`);
-            const color = (card.suit === 'heart' || card.suit === 'diamond') ? 'text-red-600' : 'text-black';
-            el.className = `card ${color === 'text-red-600' ? 'red' : 'black'} ${heldCards[i] ? 'held' : ''}`;
-            el.innerHTML = `<div>${card.val}</div><i data-lucide="${card.suit}" class="w-6 h-6 ${color} fill-current"></i>`;
-        }
-
-        function dealPoker() {
-             if(pokerStage === 'deal') {
-                 if(state.balance < 50) return alert("Tom for penger");
-                 state.balance -= 50;
-                 saveState();
-                 
-                 createPokerDeck();
-                 pokerHand = [];
-                 heldCards = [false,false,false,false,false];
-                 for(let i=0; i<5; i++) pokerHand.push(pokerDeck.pop());
-                 
-                 pokerHand.forEach((c, i) => drawPokerCardUI(i, c));
-                 lucide.createIcons();
-                 
-                 document.getElementById('deal-btn').innerText = "TREKK";
-                 document.getElementById('poker-message').innerText = "Velg kort å beholde";
-                 pokerStage = 'draw';
-             } else {
-                 // Draw
-                 for(let i=0; i<5; i++) {
-                     if(!heldCards[i]) pokerHand[i] = pokerDeck.pop();
-                 }
-                 pokerHand.forEach((c, i) => drawPokerCardUI(i, c));
-                 lucide.createIcons();
-                 
-                 const win = evaluatePokerHand(pokerHand);
-                 if(win > 0) {
-                     handleWin(win);
-                     document.getElementById('poker-message').innerText = `GEVINST: ${win} kr`;
-                 } else {
-                     SoundEngine.playLoss();
-                     document.getElementById('poker-message').innerText = "Ingen gevinst";
-                 }
-                 
-                 document.getElementById('deal-btn').innerText = "NYTT SPILL (50 kr)";
-                 pokerStage = 'deal';
-             }
-        }
-
-        function toggleHold(i) {
-            if(pokerStage !== 'draw') return;
-            heldCards[i] = !heldCards[i];
-            const el = document.getElementById(`card-${i}`);
-            if(heldCards[i]) el.classList.add('held'); else el.classList.remove('held');
-        }
-
-        function evaluatePokerHand(hand) {
-            // Simplified logic
-            const values = ['2','3','4','5','6','7','8','9','10','J','Q','K','A'];
-            const ranks = hand.map(c => values.indexOf(c.val)).sort((a,b)=>a-b);
-            const suits = hand.map(c => c.suit);
-            
-            const isFlush = suits.every(s => s === suits[0]);
-            const isStraight = ranks.every((r,i) => i===0 || r === ranks[i-1]+1); // Rough check
-            
-            const counts = {};
-            ranks.forEach(r => counts[r] = (counts[r]||0)+1);
-            const countVals = Object.values(counts);
-            
-            if(isFlush && isStraight) return 2500; // Straight Flush
-            if(countVals.includes(4)) return 1250; // 4 of a kind
-            if(countVals.includes(3) && countVals.includes(2)) return 450; // Full House
-            if(isFlush) return 300;
-            if(isStraight) return 200;
-            if(countVals.includes(3)) return 150;
-            if(countVals.filter(x => x===2).length === 2) return 100; // 2 Pair
-            
-            // Jacks or Better
-            if(countVals.includes(2)) {
-                // Find pair rank
-                for(let r in counts) {
-                    if(counts[r] === 2 && parseInt(r) >= 9) return 50; // J(9), Q(10), K(11), A(12)
-                }
-            }
-            
-            return 0;
-        }
-
-
-        // --- SIMPLE GAMES ---
-        function playCoin(choice) {
-            if(state.balance < 50) return alert("Tom for penger");
-            state.balance -= 50;
-            saveState();
-            const res = Math.random() > 0.5 ? 'kron' : 'mynt';
-            document.getElementById('coin-display').innerHTML = res === 'kron' 
-                ? '<span class="text-4xl font-bold">K</span>' 
-                : '<span class="text-4xl font-bold">M</span>';
-            if(choice === res) handleWin(100); else SoundEngine.playLoss();
-        }
-
-        function rollDice() {
-             if(state.balance < 50) return alert("Tom for penger");
-            state.balance -= 50;
-            saveState();
-            
-            const btn = document.getElementById('dice-btn');
-            btn.disabled = true; // Prevent spam
-            
-            const roll = Math.ceil(Math.random()*6);
-            document.getElementById('dice-visual').innerHTML = `<div class="w-16 h-16 bg-white rounded flex items-center justify-center text-4xl text-black font-bold border-2 border-slate-400">${roll}</div>`;
-            
-            if(roll === 6) handleWin(150); else SoundEngine.playLoss();
-            
-            setTimeout(() => btn.disabled = false, 1000);
-        }
-
-        function playRoulette(choice) {
-            if(state.balance < 100) return alert("Tom for penger");
-            state.balance -= 100;
-            saveState();
-            document.getElementById('roulette-result').innerText = "RULLER...";
-            setTimeout(() => {
-                const r = Math.random();
-                let color = 'black';
-                if(r < 0.05) color = 'green';
-                else if(r < 0.5) color = 'red';
-                
-                document.getElementById('roulette-result').innerText = color.toUpperCase();
-                document.getElementById('roulette-result').className = `text-2xl font-mono text-${color === 'black' ? 'white' : color + '-500'}`;
-                
-                if(choice === color) {
-                    if(color === 'green') handleWin(1400);
-                    else handleWin(200);
-                } else SoundEngine.playLoss();
-            }, 1000);
-        }
-
-        function resetRace() {
-            document.getElementById('race-track').innerHTML = [0,1,2].map(i => 
-                `<div class="relative w-full h-8 bg-slate-900 rounded-full overflow-hidden border border-slate-700">
-                    <div id="horse-${i}" class="absolute left-0 top-0 h-full w-8 bg-${['red','blue','green'][i]}-600 rounded-full transition-all duration-100 flex items-center justify-center text-xs">
-                        <i data-lucide="move-right" class="text-white w-4 h-4"></i>
-                    </div>
-                </div>`
-            ).join('');
-            lucide.createIcons();
-        }
-        function startRace(choice) {
-             if(state.balance < 100) return alert("Tom for penger");
-            state.balance -= 100;
-            saveState();
-            
-            let pos = [0,0,0];
-            const interval = setInterval(() => {
-                for(let i=0; i<3; i++) {
-                    pos[i] += Math.random() * 5;
-                    document.getElementById(`horse-${i}`).style.left = Math.min(pos[i], 92) + '%';
-                    if(pos[i] >= 92) {
-                        clearInterval(interval);
-                        if(i === choice) handleWin(300); else SoundEngine.playLoss();
-                    }
-                }
-            }, 100);
-        }
-
-        function playHiLow(choice) {
-             if(state.balance < 50) return alert("Tom for penger");
-            state.balance -= 50;
-            saveState();
-            
-            const curr = parseInt(document.getElementById('hilow-card').getAttribute('data-val') || 7);
-            const next = Math.ceil(Math.random() * 13);
-            document.getElementById('hilow-card').innerText = next;
-            document.getElementById('hilow-card').setAttribute('data-val', next);
-            
-            if((choice === 'high' && next > curr) || (choice === 'low' && next < curr)) {
-                handleWin(100);
-            } else if (next === curr) {
-                handleWin(50);
-            } else {
-                SoundEngine.playLoss();
-            }
+        function handleWin(amount) {
+             SoundEngine.play('win');
+             // Logic to show modal if desired, or just sound
         }
     </script>
 </body>
