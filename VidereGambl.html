@@ -548,22 +548,42 @@
         let gun, appScope;
         try {
             gun = Gun([
+                'https://peer.wallie.io/gun', 
                 'https://gun-manhattan.herokuapp.com/gun',
                 'https://gun-eu.herokuapp.com/gun',
-                'https://relay.129.153.59.37.nip.io/gun',
                 'https://plankton-app-6qfp3.ondigitalocean.app/gun'
             ]);
             appScope = gun.get('videregaende-gambling-pvp-v6-stable'); 
             
             // Connection monitor
+            let isConnected = false;
+            
+            // Timeout to set red if no connection
+            setTimeout(() => {
+                if(!isConnected) {
+                    const d = document.getElementById('conn-dot');
+                    if(d) {
+                        d.className = 'conn-dot bg-red-500';
+                        document.getElementById('conn-text').innerText = "Tilkobling feilet (Brannmur?)";
+                    }
+                }
+            }, 5000);
+
             gun.on('hi', () => { 
-                document.getElementById('conn-dot').classList.replace('bg-red-500', 'bg-green-500'); 
-                document.getElementById('conn-dot').classList.replace('bg-yellow-500', 'bg-green-500'); 
-                document.getElementById('conn-text').innerText = "Tilkoblet";
+                isConnected = true;
+                const d = document.getElementById('conn-dot');
+                if(d) {
+                    d.className = 'conn-dot bg-green-500';
+                    document.getElementById('conn-text').innerText = "Tilkoblet";
+                }
             });
             gun.on('bye', () => {
-                document.getElementById('conn-dot').classList.replace('bg-green-500', 'bg-red-500'); 
-                document.getElementById('conn-text').innerText = "Frakoblet";
+                isConnected = false;
+                const d = document.getElementById('conn-dot');
+                if(d) {
+                    d.className = 'conn-dot bg-red-500';
+                    document.getElementById('conn-text').innerText = "Mistet tilkobling";
+                }
             });
 
         } catch(e) { console.error("GUN Error:", e); }
