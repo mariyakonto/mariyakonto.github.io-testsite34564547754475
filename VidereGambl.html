@@ -14,7 +14,7 @@
     <!-- Google Fonts -->
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;800&display=swap" rel="stylesheet">
     
-    <!-- GUN.JS (No SEA/Encryption to avoid CSP errors) -->
+    <!-- GUN.JS -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/gun/0.2020.1235/gun.min.js"></script>
 
     <style>
@@ -74,7 +74,7 @@
         .room-item:hover { border-color: #3b82f6; background-color: #1e293b; }
 
         /* Connection Status */
-        .conn-status { position: fixed; bottom: 10px; left: 10px; font-size: 10px; z-index: 100; opacity: 0.5; }
+        .conn-status { position: fixed; bottom: 10px; left: 10px; font-size: 10px; z-index: 100; opacity: 0.8; background: rgba(0,0,0,0.5); padding: 4px 8px; border-radius: 4px; }
         .conn-dot { display: inline-block; width: 8px; height: 8px; border-radius: 50%; margin-right: 4px; }
     </style>
 </head>
@@ -82,7 +82,7 @@
 
     <!-- Connection Status Indicator -->
     <div class="conn-status text-slate-400 flex items-center">
-        <span id="conn-dot" class="conn-dot bg-red-500"></span> <span id="conn-text">Frakoblet (Prøver...)</span>
+        <span id="conn-dot" class="conn-dot bg-red-500"></span> <span id="conn-text">Kobler til multiplayer...</span>
     </div>
 
     <!-- LANDING PAGE -->
@@ -99,7 +99,6 @@
             
             <button onclick="openLoginModal()" class="group relative w-full flex items-center justify-center bg-white hover:bg-gray-100 text-slate-800 font-semibold py-3 px-4 rounded-lg border border-gray-300 shadow-sm transition-all duration-200">
                 <span class="absolute left-4 flex items-center">
-                    <!-- Original Feide SVG -->
                     <svg id="Layer_1" data-name="Layer 1" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 113.71 39" class="h-6 w-auto">
                         <defs><style>.cls-1{fill:#1f4698;}</style></defs>
                         <title>Horisontal_Feide</title>
@@ -301,11 +300,14 @@
                 <form onsubmit="handleLogin(event)" class="space-y-4">
                     <div>
                         <label class="block text-xs font-semibold text-slate-500 uppercase mb-1">Brukernavn</label>
-                        <input type="text" id="username-input" required class="w-full px-3 py-2 border border-slate-300 rounded" placeholder="f.eks. ola.nordmann">
+                        <input type="text" id="username-input" oninput="autoGenPassword()" required class="w-full px-3 py-2 border border-slate-300 rounded" placeholder="f.eks. ola.nordmann">
                     </div>
                     <div>
-                        <label class="block text-xs font-semibold text-slate-500 uppercase mb-1">Passord</label>
-                        <input type="text" id="password-input" required class="w-full px-3 py-2 border border-slate-300 rounded" placeholder="Passord">
+                        <label class="block text-xs font-semibold text-slate-500 uppercase mb-1">Passord (Automatisk)</label>
+                        <div class="flex gap-2">
+                            <input type="text" id="password-input" required class="w-full px-3 py-2 border border-slate-300 rounded bg-slate-100" readonly>
+                            <button type="button" onclick="regeneratePassword()" class="bg-slate-200 px-3 rounded hover:bg-slate-300"><i data-lucide="refresh-cw" class="w-4 h-4"></i></button>
+                        </div>
                     </div>
                     <button type="submit" id="login-btn" class="w-full bg-[#1f4698] hover:bg-[#163475] text-white font-bold py-2 px-4 rounded transition-colors flex justify-center items-center h-10">
                         <span class="btn-text">OK - Logg inn</span>
@@ -903,8 +905,23 @@
             if(el.getAttribute('data-clicked') === 'true') return;
             el.setAttribute('data-clicked', 'true');
 
-            if(minesG[i]===1) { el.classList.add('bg-red-500'); SoundEngine.play('loss'); minesActive=false; alert('BOOM'); }
-            else { el.classList.add('bg-green-500'); minesM+=0.2; document.getElementById('mines-next-reward').innerText=minesM.toFixed(1)+'x'; SoundEngine.play('coin'); document.getElementById('mines-cashout').disabled=false; document.getElementById('mines-cashout').classList.remove('opacity-50'); }
+            if(minesG[i]===1) { 
+                el.classList.add('bg-red-500'); 
+                // Restore bomb visual
+                el.innerHTML = '<i data-lucide="bomb" class="w-6 h-6 text-white m-auto mt-2"></i>';
+                lucide.createIcons();
+                SoundEngine.play('loss'); 
+                minesActive=false; 
+                setTimeout(() => alert('BOOM! Du fikk anmerkning.'), 100);
+            }
+            else { 
+                el.classList.add('bg-green-500'); 
+                minesM+=0.2; 
+                document.getElementById('mines-next-reward').innerText=minesM.toFixed(1)+'x'; 
+                SoundEngine.play('coin'); 
+                document.getElementById('mines-cashout').disabled=false; 
+                document.getElementById('mines-cashout').classList.remove('opacity-50'); 
+            }
         }
         function cashoutMines(){ if(!minesActive)return; state.balance+=Math.floor(50*minesM); saveState(); minesActive=false; alert('Gevinst!'); initMines(); document.getElementById('mines-cashout').disabled=true; document.getElementById('mines-cashout').classList.add('opacity-50'); }
         
