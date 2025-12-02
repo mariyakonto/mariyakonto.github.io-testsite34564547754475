@@ -82,7 +82,7 @@
 
     <!-- Connection Status Indicator -->
     <div class="conn-status text-slate-400 flex items-center">
-        <span id="conn-dot" class="conn-dot bg-red-500"></span> <span id="conn-text">Frakoblet</span>
+        <span id="conn-dot" class="conn-dot bg-red-500"></span> <span id="conn-text">Frakoblet (Prøver...)</span>
     </div>
 
     <!-- LANDING PAGE -->
@@ -290,7 +290,7 @@
 
     <!-- ===== GENERIC MODALS ===== -->
 
-    <!-- Login Modal -->
+    <!-- Login Modal (FIXED: Editable Password) -->
     <div id="login-modal" class="modal fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm p-4">
         <div class="modal-content bg-white text-slate-900 rounded-xl shadow-2xl w-full max-w-sm overflow-hidden">
             <div class="bg-slate-100 p-4 border-b border-slate-200 flex justify-between items-center">
@@ -301,14 +301,11 @@
                 <form onsubmit="handleLogin(event)" class="space-y-4">
                     <div>
                         <label class="block text-xs font-semibold text-slate-500 uppercase mb-1">Brukernavn</label>
-                        <input type="text" id="username-input" oninput="autoGenPassword()" required class="w-full px-3 py-2 border border-slate-300 rounded" placeholder="f.eks. ola.nordmann">
+                        <input type="text" id="username-input" required class="w-full px-3 py-2 border border-slate-300 rounded" placeholder="f.eks. ola.nordmann">
                     </div>
                     <div>
-                        <label class="block text-xs font-semibold text-slate-500 uppercase mb-1">Passord (Automatisk)</label>
-                        <div class="flex gap-2">
-                            <input type="text" id="password-input" required class="w-full px-3 py-2 border border-slate-300 rounded bg-slate-100" readonly>
-                            <button type="button" onclick="regeneratePassword()" class="bg-slate-200 px-3 rounded hover:bg-slate-300"><i data-lucide="refresh-cw" class="w-4 h-4"></i></button>
-                        </div>
+                        <label class="block text-xs font-semibold text-slate-500 uppercase mb-1">Passord</label>
+                        <input type="text" id="password-input" required class="w-full px-3 py-2 border border-slate-300 rounded" placeholder="Passord">
                     </div>
                     <button type="submit" id="login-btn" class="w-full bg-[#1f4698] hover:bg-[#163475] text-white font-bold py-2 px-4 rounded transition-colors flex justify-center items-center h-10">
                         <span class="btn-text">OK - Logg inn</span>
