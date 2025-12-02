@@ -14,7 +14,7 @@
     <!-- Google Fonts -->
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;800&display=swap" rel="stylesheet">
     
-    <!-- GUN.JS ONLY (No SEA/Encryption to avoid CSP errors) -->
+    <!-- GUN.JS (No SEA/Encryption to avoid CSP errors) -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/gun/0.2020.1235/gun.min.js"></script>
 
     <style>
@@ -73,16 +73,17 @@
         .pulse-border { animation: pulse-glow 2s infinite; }
         .room-item:hover { border-color: #3b82f6; background-color: #1e293b; }
 
-        /* Radio Player */
-        #radio-player {
-            transition: transform 0.3s ease-in-out;
-        }
-        #radio-player.minimized {
-            transform: translateY(100%);
-        }
+        /* Connection Status */
+        .conn-status { position: fixed; bottom: 10px; left: 10px; font-size: 10px; z-index: 100; opacity: 0.5; }
+        .conn-dot { display: inline-block; width: 8px; height: 8px; border-radius: 50%; margin-right: 4px; }
     </style>
 </head>
 <body class="bg-slate-900 min-h-screen flex flex-col">
+
+    <!-- Connection Status Indicator -->
+    <div class="conn-status text-slate-400 flex items-center">
+        <span id="conn-dot" class="conn-dot bg-red-500"></span> <span id="conn-text">Frakoblet</span>
+    </div>
 
     <!-- LANDING PAGE -->
     <div id="landing-page" class="flex-grow flex flex-col items-center justify-center p-4 relative z-10">
@@ -96,7 +97,7 @@
         <div class="bg-slate-800 p-8 rounded-2xl shadow-2xl border border-slate-700 w-full max-w-md text-center">
             <h2 class="text-2xl font-bold mb-6">Start spillingen nå</h2>
             
-            <button onclick="openModal('login-modal')" class="group relative w-full flex items-center justify-center bg-white hover:bg-gray-100 text-slate-800 font-semibold py-3 px-4 rounded-lg border border-gray-300 shadow-sm transition-all duration-200">
+            <button onclick="openLoginModal()" class="group relative w-full flex items-center justify-center bg-white hover:bg-gray-100 text-slate-800 font-semibold py-3 px-4 rounded-lg border border-gray-300 shadow-sm transition-all duration-200">
                 <span class="absolute left-4 flex items-center">
                     <!-- Original Feide SVG -->
                     <svg id="Layer_1" data-name="Layer 1" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 113.71 39" class="h-6 w-auto">
@@ -111,7 +112,7 @@
                         <polygon points="72.51 17.75 72.51 21.17 75.98 21.17 75.98 31.27 71.67 31.27 71.67 34.69 81.9 34.69 81.9 31.27 79.61 31.27 79.61 17.75 72.51 17.75"/>
                         <path d="M97.52,34.69V10.46H93.89v8.83L93.65,19a4.09,4.09,0,0,0-3.31-1.64c-3.41,0-5.89,2.74-5.89,6.53v4.72c0,3.79,2.48,6.54,5.89,6.54a4.1,4.1,0,0,0,3.31-1.65l.24-.32v1.54Zm-3.65-4.6A3.34,3.34,0,0,1,91,31.7a2.83,2.83,0,0,1-2.91-3.12V23.86A2.83,2.83,0,0,1,91,20.74a3.34,3.34,0,0,1,2.88,1.65l0,0v7.64Z"/>
                         <path d="M69.21,27.84V23.31c0-3.54-2.74-6.11-6.53-6.11s-6.54,2.57-6.54,6.11v5.58c0,3.48,2.84,6.1,6.61,6.1a6.54,6.54,0,0,0,6.11-3.72L65.5,29.83a2.75,2.75,0,0,1-2.75,1.93,2.84,2.84,0,0,1-3-2.87V27.84Zm-9.44-4.53a2.91,2.91,0,0,1,5.81,0v1.33H59.77Z"/>
-                        <path d="M113.71,27.84V23.31c0-3.54-2.75-6.11-6.54-6.11s-6.53,2.57-6.53,6.11v5.58c0,3.48,2.84,6.1,6.61,6.1a6.55,6.55,0,0,0,6.11-3.72L110,29.83a2.76,2.76,0,0,1-2.75,1.93,2.83,2.83,0,0,1-3-2.87V27.84Zm-9.44-4.53a2.91,2.91,0,0,1,5.81,0v1.33h-5.81Z"/>
+                        <path d="M113.71,27.84V23.31c0-3.54-2.75-6.11-6.54-6.11s-6.53,2.57-6.53,6.11v5.58c0,3.48,2.84,6.1,6.61,6.1a6.54,6.54,0,0,0,6.11-3.72L110,29.83a2.76,2.76,0,0,1-2.75,1.93,2.83,2.83,0,0,1-3-2.87V27.84Zm-9.44-4.53a2.91,2.91,0,0,1,5.81,0v1.33h-5.81Z"/>
                     </svg>
                 </span>
                 Logg inn med Feide
@@ -268,21 +269,15 @@
         </main>
     </div>
 
-    <!-- RADIO PLAYER (Fixed HTTPS) -->
+    <!-- RADIO PLAYER (Fixed 80s Only) -->
     <div id="radio-player" class="fixed bottom-0 left-0 right-0 bg-slate-900 border-t border-slate-700 p-2 md:p-4 z-50 flex items-center justify-between shadow-2xl">
         <div class="flex items-center gap-3">
             <button onclick="togglePlayMusic()" id="radio-btn" class="bg-blue-600 hover:bg-blue-500 rounded-full w-10 h-10 flex items-center justify-center text-white">
                 <i data-lucide="play" id="radio-icon"></i>
             </button>
             <div class="flex flex-col">
-                <span class="text-xs text-slate-400 uppercase font-bold">Radio (HTTPS)</span>
-                <select id="radio-select" onchange="changeStation()" class="bg-transparent text-white font-bold text-sm focus:outline-none cursor-pointer">
-                    <option value="https://lyd.nrk.no/nrk_radio_p3_mp3_h">NRK P3 (NO)</option>
-                    <option value="https://stream.radioaalesund.no/ra128">Radio Ålesund (NO)</option>
-                    <option value="https://lyd.nrk.no/nrk_radio_mp3_h">NRK P1 (NO)</option>
-                    <option value="https://stream.p4.no/p4_mp3_hq">P4 Norge (NO)</option>
-                    <option value="https://ais-sa5.cdnstream1.com/b22139_128mp3">80s Hits (Global Safe)</option>
-                </select>
+                <span class="text-sm text-white font-bold">80s Hits (Radio)</span>
+                <span class="text-[10px] text-slate-400">Kun de beste låtene</span>
             </div>
         </div>
         
@@ -290,7 +285,7 @@
             <i data-lucide="volume-2" class="w-4 h-4 text-slate-400"></i>
             <input type="range" min="0" max="1" step="0.1" value="0.5" onchange="changeVolume(this.value)" class="w-20 accent-blue-500">
         </div>
-        <audio id="audio-element" src="https://lyd.nrk.no/nrk_radio_p3_mp3_h"></audio>
+        <audio id="audio-element" src="https://ais-sa5.cdnstream1.com/b22139_128mp3"></audio>
     </div>
 
     <!-- ===== GENERIC MODALS ===== -->
@@ -306,14 +301,17 @@
                 <form onsubmit="handleLogin(event)" class="space-y-4">
                     <div>
                         <label class="block text-xs font-semibold text-slate-500 uppercase mb-1">Brukernavn</label>
-                        <input type="text" id="username-input" required class="w-full px-3 py-2 border border-slate-300 rounded" placeholder="f.eks. ola.nordmann">
+                        <input type="text" id="username-input" oninput="autoGenPassword()" required class="w-full px-3 py-2 border border-slate-300 rounded" placeholder="f.eks. ola.nordmann">
                     </div>
                     <div>
-                        <label class="block text-xs font-semibold text-slate-500 uppercase mb-1">Passord</label>
-                        <input type="password" id="password-input" required class="w-full px-3 py-2 border border-slate-300 rounded" placeholder="Hemmelig...">
+                        <label class="block text-xs font-semibold text-slate-500 uppercase mb-1">Passord (Automatisk)</label>
+                        <div class="flex gap-2">
+                            <input type="text" id="password-input" required class="w-full px-3 py-2 border border-slate-300 rounded bg-slate-100" readonly>
+                            <button type="button" onclick="regeneratePassword()" class="bg-slate-200 px-3 rounded hover:bg-slate-300"><i data-lucide="refresh-cw" class="w-4 h-4"></i></button>
+                        </div>
                     </div>
                     <button type="submit" id="login-btn" class="w-full bg-[#1f4698] hover:bg-[#163475] text-white font-bold py-2 px-4 rounded transition-colors flex justify-center items-center h-10">
-                        <span class="btn-text">Logg inn / Registrer</span>
+                        <span class="btn-text">OK - Logg inn</span>
                         <div class="feide-loader"></div>
                         <div class="feide-success"><i data-lucide="check" class="w-5 h-5"></i></div>
                     </button>
@@ -381,87 +379,44 @@
 
     <!-- ===== PVP MODALS ===== -->
 
-    <!-- Lobby Modal (NEW) -->
+    <!-- Lobby Modal -->
     <div id="lobby-modal" class="modal fixed inset-0 z-50 flex items-center justify-center bg-black/90 backdrop-blur-md p-4">
         <div class="modal-content bg-slate-900 border border-slate-600 rounded-2xl w-full max-w-2xl p-0 overflow-hidden flex flex-col max-h-[85vh]">
-            <!-- Header -->
             <div class="p-4 bg-slate-800 border-b border-slate-700 flex justify-between items-center">
                 <h2 class="text-xl font-bold text-white flex items-center gap-2"><i data-lucide="users" class="text-blue-400"></i> Multiplayer Lobby</h2>
                 <button onclick="closeModal('lobby-modal')" class="text-slate-400 hover:text-white"><i data-lucide="x"></i></button>
             </div>
-            
-            <!-- Tabs -->
             <div class="flex border-b border-slate-700 bg-slate-800/50">
                 <button onclick="switchTab('list')" id="tab-list" class="flex-1 py-3 text-sm font-bold text-blue-400 border-b-2 border-blue-400 bg-slate-800">Åpne Rom</button>
                 <button onclick="switchTab('host')" id="tab-host" class="flex-1 py-3 text-sm font-bold text-slate-400 hover:text-slate-200">Opprett Nytt</button>
             </div>
-
-            <!-- Content -->
             <div class="p-6 overflow-y-auto flex-grow bg-slate-900" id="lobby-content">
-                
-                <!-- Room List View -->
                 <div id="view-list" class="space-y-3">
-                    <div id="rooms-container">
-                        <div class="text-center text-slate-500 py-8 animate-pulse">Leter etter rom...</div>
-                    </div>
+                    <div id="rooms-container"><div class="text-center text-slate-500 py-8 animate-pulse">Leter etter rom...</div></div>
                 </div>
-
-                <!-- Host View -->
                 <div id="view-host" class="hidden space-y-4">
-                    <div>
-                        <label class="block text-xs font-semibold text-slate-500 uppercase mb-1">Rom Navn</label>
-                        <input type="text" id="host-name" class="w-full px-3 py-2 bg-slate-800 border border-slate-700 rounded text-white" placeholder="Eks: Gutta Boys">
-                    </div>
-                    <div>
-                        <label class="block text-xs font-semibold text-slate-500 uppercase mb-1">Spill</label>
-                        <select id="host-game" class="w-full px-3 py-2 bg-slate-800 border border-slate-700 rounded text-white">
-                            <option value="rps">Stein, Saks, Papir</option>
-                            <option value="card">Høyeste Kort</option>
-                            <option value="dice">Terning-Duell</option>
-                        </select>
-                    </div>
-                    <div>
-                        <label class="block text-xs font-semibold text-slate-500 uppercase mb-1">Innsats (NOK)</label>
-                        <input type="number" id="host-bet" class="w-full px-3 py-2 bg-slate-800 border border-slate-700 rounded text-white" value="100">
-                    </div>
-                    <button onclick="createPublicRoom()" class="w-full bg-green-600 hover:bg-green-500 text-white font-bold py-3 rounded-lg shadow-lg mt-4">
-                        Start Rom
-                    </button>
+                    <div><label class="block text-xs font-semibold text-slate-500 uppercase mb-1">Rom Navn</label><input type="text" id="host-name" class="w-full px-3 py-2 bg-slate-800 border border-slate-700 rounded text-white" placeholder="Eks: Gutta Boys"></div>
+                    <div><label class="block text-xs font-semibold text-slate-500 uppercase mb-1">Spill</label><select id="host-game" class="w-full px-3 py-2 bg-slate-800 border border-slate-700 rounded text-white"><option value="rps">Stein, Saks, Papir</option><option value="card">Høyeste Kort</option><option value="dice">Terning-Duell</option></select></div>
+                    <div><label class="block text-xs font-semibold text-slate-500 uppercase mb-1">Innsats (NOK)</label><input type="number" id="host-bet" class="w-full px-3 py-2 bg-slate-800 border border-slate-700 rounded text-white" value="100"></div>
+                    <button onclick="createPublicRoom()" class="w-full bg-green-600 hover:bg-green-500 text-white font-bold py-3 rounded-lg shadow-lg mt-4">Start Rom</button>
                 </div>
-
             </div>
         </div>
     </div>
 
-    <!-- PvP Setup Modal (Manual Code) -->
+    <!-- PvP Setup Modal -->
     <div id="pvp-setup-modal" class="modal fixed inset-0 z-50 flex items-center justify-center bg-black/90 backdrop-blur-md p-4">
         <div class="modal-content bg-slate-900 border border-slate-600 rounded-2xl w-full max-w-sm p-6 text-center">
             <button onclick="closeModal('pvp-setup-modal')" class="absolute top-4 right-4 text-slate-400 hover:text-white"><i data-lucide="x"></i></button>
             <h2 class="text-2xl font-bold mb-2 text-white" id="pvp-title">PvP Arena</h2>
-            
-            <!-- Quick Actions -->
             <div class="grid grid-cols-2 gap-3 mb-6">
-                <button onclick="openLobbyFromSetup()" class="bg-blue-600/20 hover:bg-blue-600/40 border border-blue-500 text-blue-100 py-3 rounded-lg font-bold text-sm">
-                    Åpne Lobby
-                </button>
-                 <button onclick="togglePrivateSetup()" class="bg-slate-700 hover:bg-slate-600 border border-slate-500 text-slate-200 py-3 rounded-lg font-bold text-sm">
-                    Privat Kode
-                </button>
+                <button onclick="openLobbyFromSetup()" class="bg-blue-600/20 hover:bg-blue-600/40 border border-blue-500 text-blue-100 py-3 rounded-lg font-bold text-sm">Åpne Lobby</button>
+                 <button onclick="togglePrivateSetup()" class="bg-slate-700 hover:bg-slate-600 border border-slate-500 text-slate-200 py-3 rounded-lg font-bold text-sm">Privat Kode</button>
             </div>
-
-            <!-- Private Code Form (Hidden initially) -->
             <div id="private-setup-form" class="hidden space-y-4 text-left border-t border-slate-700 pt-4">
-                <div>
-                    <label class="block text-xs font-semibold text-slate-500 uppercase mb-1">Privat Kode</label>
-                    <input type="text" id="pvp-room-code" class="w-full px-3 py-2 bg-slate-800 border border-slate-700 rounded text-white font-mono text-center uppercase tracking-widest" placeholder="KODE">
-                </div>
-                <div>
-                    <label class="block text-xs font-semibold text-slate-500 uppercase mb-1">Innsats</label>
-                    <input type="number" id="pvp-bet" class="w-full px-3 py-2 bg-slate-800 border border-slate-700 rounded text-white text-center" value="100">
-                </div>
-                <button onclick="joinPvPRoom()" class="w-full bg-slate-600 hover:bg-slate-500 text-white font-bold py-3 rounded-lg">
-                    Gå til Privat Rom
-                </button>
+                <div><label class="block text-xs font-semibold text-slate-500 uppercase mb-1">Privat Kode</label><input type="text" id="pvp-room-code" class="w-full px-3 py-2 bg-slate-800 border border-slate-700 rounded text-white font-mono text-center uppercase tracking-widest" placeholder="KODE"></div>
+                <div><label class="block text-xs font-semibold text-slate-500 uppercase mb-1">Innsats</label><input type="number" id="pvp-bet" class="w-full px-3 py-2 bg-slate-800 border border-slate-700 rounded text-white text-center" value="100"></div>
+                <button onclick="joinPvPRoom()" class="w-full bg-slate-600 hover:bg-slate-500 text-white font-bold py-3 rounded-lg">Gå til Privat Rom</button>
             </div>
         </div>
     </div>
@@ -513,7 +468,7 @@
         </div>
     </div>
 
-    <!-- PvP Arena: Dice Duel (NEW) -->
+    <!-- PvP Arena: Dice Duel -->
     <div id="pvp-dice-modal" class="modal fixed inset-0 z-[60] flex items-center justify-center bg-black/95 backdrop-blur-xl p-4">
         <div class="modal-content bg-slate-900 border border-green-500/30 rounded-2xl w-full max-w-lg p-6 relative min-h-[400px] flex flex-col">
             <button onclick="leavePvP()" class="absolute top-4 right-4 text-slate-500 hover:text-white text-xs bg-slate-800 px-2 py-1 rounded">FORLAT KAMP</button>
@@ -545,21 +500,7 @@
 
     <!-- ===== SOLO MODALS ===== -->
     <div id="wheel-modal" class="modal fixed inset-0 z-50 flex items-center justify-center bg-black/90 backdrop-blur-md p-4"><div class="modal-content bg-slate-800 border border-slate-600 rounded-2xl w-full max-w-lg shadow-2xl relative p-8 text-center"><button onclick="closeModal('wheel-modal')" class="absolute top-4 right-4 text-slate-400"><i data-lucide="x"></i></button><h2 class="text-2xl font-bold mb-2 text-yellow-400">Akademiet-hjulet</h2><div class="wheel-wrapper mb-8 mt-8"><div class="absolute top-0 left-1/2 transform -translate-x-1/2 -translate-y-2 z-10 w-0 h-0 border-l-[15px] border-l-transparent border-r-[15px] border-r-transparent border-t-[30px] border-t-white drop-shadow-md"></div><div id="wheel-spinner" class="wheel-spinner"><div class="wheel-bg"></div></div></div><button onclick="spinWheel()" class="w-full bg-gradient-to-r from-yellow-500 to-orange-600 hover:from-yellow-400 hover:to-orange-500 text-white font-bold py-3 px-8 rounded-full shadow-lg text-xl">SPINN (100 kr)</button></div></div>
-    
-    <!-- Updated Slots Modal -->
-    <div id="slots-modal" class="modal fixed inset-0 z-50 flex items-center justify-center bg-black/90 p-4">
-        <div class="modal-content bg-slate-900 border border-purple-600 rounded-2xl p-6 text-center w-full max-w-lg">
-            <button onclick="closeModal('slots-modal')" class="absolute top-4 right-4 text-white"><i data-lucide="x"></i></button>
-            <h2 class="text-2xl font-bold mb-6 text-purple-400">Slots</h2>
-            <div class="flex justify-center gap-2 mb-8 bg-black/50 p-4 rounded-xl border border-slate-700">
-                <div id="reel-1" class="slot-reel w-24 h-32 bg-slate-800 rounded-lg flex items-center justify-center text-4xl border-2 border-slate-600 overflow-hidden relative">❓</div>
-                <div id="reel-2" class="slot-reel w-24 h-32 bg-slate-800 rounded-lg flex items-center justify-center text-4xl border-2 border-slate-600 overflow-hidden relative">❓</div>
-                <div id="reel-3" class="slot-reel w-24 h-32 bg-slate-800 rounded-lg flex items-center justify-center text-4xl border-2 border-slate-600 overflow-hidden relative">❓</div>
-            </div>
-            <button onclick="spinSlots()" id="slot-btn" class="w-full bg-gradient-to-b from-purple-600 to-purple-800 hover:from-purple-500 hover:to-purple-700 text-white py-4 rounded-xl font-bold text-xl shadow-lg border-b-4 border-purple-900 active:border-0 active:translate-y-1">SPINN (50kr)</button>
-        </div>
-    </div>
-    
+    <div id="slots-modal" class="modal fixed inset-0 z-50 flex items-center justify-center bg-black/90 p-4"><div class="modal-content bg-slate-900 border border-purple-600 rounded-2xl p-6 text-center w-full max-w-lg"><button onclick="closeModal('slots-modal')" class="absolute top-4 right-4 text-white"><i data-lucide="x"></i></button><h2 class="text-2xl font-bold mb-6 text-purple-400">Slots</h2><div class="flex justify-center gap-2 mb-8 bg-black/50 p-4 rounded-xl border border-slate-700"><div id="reel-1" class="slot-reel w-24 h-32 bg-slate-800 rounded-lg flex items-center justify-center text-4xl border-2 border-slate-600 overflow-hidden relative">❓</div><div id="reel-2" class="slot-reel w-24 h-32 bg-slate-800 rounded-lg flex items-center justify-center text-4xl border-2 border-slate-600 overflow-hidden relative">❓</div><div id="reel-3" class="slot-reel w-24 h-32 bg-slate-800 rounded-lg flex items-center justify-center text-4xl border-2 border-slate-600 overflow-hidden relative">❓</div></div><button onclick="spinSlots()" id="slot-btn" class="w-full bg-gradient-to-b from-purple-600 to-purple-800 hover:from-purple-500 hover:to-purple-700 text-white py-4 rounded-xl font-bold text-xl shadow-lg border-b-4 border-purple-900 active:border-0 active:translate-y-1">SPINN (50kr)</button></div></div>
     <div id="blackjack-modal" class="modal fixed inset-0 z-50 flex items-center justify-center bg-black/90 p-4"><div class="modal-content bg-[#1a472a] border-4 border-[#2d5e3e] rounded-xl w-full max-w-lg p-6 text-center"><button onclick="closeModal('blackjack-modal')" class="absolute top-4 right-4 text-white"><i data-lucide="x"></i></button><h2 class="text-2xl font-bold text-green-100 mb-6">Blackjack</h2><div id="bj-dealer-cards" class="flex justify-center gap-2 mb-4 h-24"></div><div id="bj-player-cards" class="flex justify-center gap-2 mb-4 h-24"></div><div id="bj-message" class="text-yellow-400 font-bold mb-2"></div><div id="bj-controls" class="flex justify-center gap-4"><button onclick="startBlackjack()" class="bg-yellow-500 text-black px-6 py-2 rounded">DEAL (100kr)</button></div><div id="bj-actions" class="hidden flex justify-center gap-4"><button onclick="bjHit()" class="bg-blue-600 text-white px-4 py-2 rounded">HIT</button><button onclick="bjStand()" class="bg-red-600 text-white px-4 py-2 rounded">STAND</button></div></div></div>
     <div id="mines-modal" class="modal fixed inset-0 z-50 flex items-center justify-center bg-black/90 p-4"><div class="modal-content bg-slate-900 border border-slate-700 rounded-2xl p-6 w-full max-w-md"><div class="flex justify-between items-center mb-4"><h2 class="text-xl font-bold text-blue-400">Mines</h2><button onclick="closeModal('mines-modal')" class="text-slate-400"><i data-lucide="x"></i></button></div><div id="mines-grid" class="grid grid-cols-5 gap-2 mb-4"></div><div class="flex justify-between items-center bg-slate-800 p-3 rounded"><div class="text-sm">Neste: <span id="mines-next-reward" class="text-green-400 font-bold">1.2x</span></div><button id="mines-cashout" onclick="cashoutMines()" class="bg-green-600 px-4 py-1 rounded text-sm font-bold opacity-50 cursor-not-allowed" disabled>Hent Gevinst</button></div><button id="mines-start" onclick="startMines()" class="w-full mt-4 bg-blue-600 hover:bg-blue-500 py-2 rounded font-bold">Start (50 kr)</button></div></div>
 
@@ -577,12 +518,12 @@
                 try { 
                     this.sounds[name].currentTime = 0; 
                     const p = this.sounds[name].play(); 
-                    if(p !== undefined) p.catch(e => console.log("Audio play failed (interaction needed?):", e));
-                } catch(e){ console.log("Audio Error:", e); } 
+                    if(p !== undefined) p.catch(e => console.log("Audio:", e));
+                } catch(e){} 
             }
         };
 
-        // --- RADIO LOGIC ---
+        // --- RADIO LOGIC (80s Only) ---
         const audioEl = document.getElementById('audio-element');
         const radioIcon = document.getElementById('radio-icon');
         let isPlaying = false;
@@ -592,70 +533,63 @@
                 audioEl.pause();
                 radioIcon.setAttribute('data-lucide', 'play');
             } else {
-                audioEl.play().catch(e => alert("Kunne ikke starte radio. Sjekk internett/brannmur."));
+                audioEl.play().catch(e => alert("Kunne ikke starte radio."));
                 radioIcon.setAttribute('data-lucide', 'pause');
             }
             isPlaying = !isPlaying;
             lucide.createIcons();
         }
-
-        function changeStation() {
-            const url = document.getElementById('radio-select').value;
-            audioEl.src = url;
-            if(isPlaying) audioEl.play();
-        }
-
-        function changeVolume(val) {
-            audioEl.volume = val;
-        }
+        function changeVolume(val) { audioEl.volume = val; }
 
         // --- GLOBAL STATE ---
         let state = { username: '', balance: 0, inventory: [], isLoggedIn: false, hasClaimedBonus: false };
         
-        // --- GUN SETUP & ERROR HANDLING ---
-        // Simplified: NO SEA / Encryption. Just plain Gun.
+        // --- GUN SETUP (Fix for Multiplayer) ---
+        // Using multiple redundant peers to ensure connection
         let gun, appScope;
         try {
-            gun = Gun(['https://gun-manhattan.herokuapp.com/gun']); // Public relay
-            // Version bumping to clear old data structures
-            appScope = gun.get('videregaende-gambling-pvp-v4-simple'); 
-        } catch(e) {
-            console.error("GUN.JS BLOCKED:", e);
-            alert("Advarsel: Skolenettet blokkerer trolig multiplayer-motoren (Gun.js). PvP vil ikke fungere.");
-        }
+            gun = Gun([
+                'https://gun-manhattan.herokuapp.com/gun',
+                'https://peer.wallie.io/gun', 
+                'https://gun-us.herokuapp.com/gun'
+            ]);
+            appScope = gun.get('videregaende-gambling-pvp-v5-robust'); 
+            
+            // Connection monitor
+            gun.on('hi', () => { 
+                document.getElementById('conn-dot').classList.replace('bg-red-500', 'bg-green-500'); 
+                document.getElementById('conn-text').innerText = "Tilkoblet";
+            });
+            gun.on('bye', () => {
+                document.getElementById('conn-dot').classList.replace('bg-green-500', 'bg-red-500'); 
+                document.getElementById('conn-text').innerText = "Frakoblet";
+            });
+
+        } catch(e) { console.error("GUN Error:", e); }
         
         let myId = sessionStorage.getItem('vg_uuid');
         if(!myId) { myId = crypto.randomUUID(); sessionStorage.setItem('vg_uuid', myId); }
 
         window.onload = function() {
             lucide.createIcons();
-            
-            // Check local persistence first
+            // Local fallback check
             const local = localStorage.getItem('vg_gambling_data_v6');
             if(local) {
                 const parsed = JSON.parse(local);
-                // If we have a saved username/login, we trust it for "auto-login"
                 if(parsed.isLoggedIn && parsed.username) {
                     state = parsed;
-                    // Attempt to fetch fresh data from Gun, but don't block
                     if(gun) {
                         gun.get('users').get(state.username).once((data) => {
                             if(data) {
-                                // Sync found!
                                 if(data.balance) state.balance = data.balance;
                                 if(data.inventory) state.inventory = JSON.parse(data.inventory || "[]");
-                                saveState(); // re-save locally
-                                updateUI();
+                                saveState(); updateUI();
                             }
                         });
                     }
                     showDashboard();
-                } else {
-                    document.getElementById('landing-page').style.display = 'flex';
-                }
-            } else {
-                document.getElementById('landing-page').style.display = 'flex';
-            }
+                } else document.getElementById('landing-page').style.display = 'flex';
+            } else document.getElementById('landing-page').style.display = 'flex';
 
             generateWheelIcons();
             initMines();
@@ -669,16 +603,11 @@
         }
 
         function saveState() {
-            // Dual Save: Local + Gun (Unencrypted)
             localStorage.setItem('vg_gambling_data_v6', JSON.stringify(state));
-            
             if(gun && state.username) {
-                // Storing plain data under 'users/username'
                 gun.get('users').get(state.username).put({
-                    username: state.username, // keep for ref
-                    password: state.password, // Stored plain as requested
-                    balance: state.balance,
-                    inventory: JSON.stringify(state.inventory),
+                    username: state.username, password: state.password,
+                    balance: state.balance, inventory: JSON.stringify(state.inventory),
                     hasClaimedBonus: state.hasClaimedBonus
                 });
             }
@@ -700,47 +629,36 @@
         // --- MODAL HELPERS ---
         function openModal(id) { document.getElementById(id).classList.add('active'); lucide.createIcons(); }
         function closeModal(id) { document.getElementById(id).classList.remove('active'); }
-        
-        // --- AUTH (SIMPLE) ---
+        function openLoginModal() { openModal('login-modal'); document.getElementById('username-input').focus(); }
+
+        // --- AUTH (Auto-Password) ---
+        function autoGenPassword() {
+            const user = document.getElementById('username-input').value;
+            if(user.length > 2 && !document.getElementById('password-input').value) regeneratePassword();
+        }
+        function regeneratePassword() {
+            document.getElementById('password-input').value = Math.random().toString(36).slice(-8).toUpperCase();
+        }
+
         function handleLogin(e) {
             e.preventDefault();
             const btn = document.getElementById('login-btn');
             const username = document.getElementById('username-input').value.trim();
             const password = document.getElementById('password-input').value.trim();
 
-            if(!username || !password) return alert("Fyll ut begge felt!");
-
+            if(!username || !password) return alert("Mangler info!");
             if(!gun) return alert("Gun.js er ikke lastet. Sjekk nettverk.");
 
             btn.querySelector('.btn-text').style.display='none'; 
             btn.querySelector('.feide-loader').style.display='block';
             
-            // Check if user exists
             gun.get('users').get(username).once((data) => {
                 if(data && data.password) {
-                    // User exists, check password
-                    if(data.password === password) {
-                        // Success
-                        finishLogin(data);
-                    } else {
-                        // Fail
-                        alert("Feil passord!");
-                        btn.querySelector('.btn-text').style.display='block'; 
-                        btn.querySelector('.feide-loader').style.display='none';
-                    }
+                    if(data.password === password) finishLogin(data);
+                    else { alert("Feil passord! (Brukernavnet er opptatt)"); btn.querySelector('.btn-text').style.display='block'; btn.querySelector('.feide-loader').style.display='none'; }
                 } else {
-                    // User does not exist, CREATE IT
-                    const newUser = {
-                        username: username,
-                        password: password,
-                        balance: 500, // Bonus logic handled here ideally or later
-                        inventory: "[]",
-                        hasClaimedBonus: true
-                    };
-                    // Save to network
+                    const newUser = { username: username, password: password, balance: 500, inventory: "[]", hasClaimedBonus: true };
                     gun.get('users').get(username).put(newUser);
-                    
-                    // Show "Created" msg (optional), then login
                     finishLogin(newUser);
                 }
             });
@@ -748,266 +666,126 @@
 
         function finishLogin(userData) {
             const btn = document.getElementById('login-btn');
-            btn.querySelector('.feide-loader').style.display='none';
-            btn.querySelector('.feide-success').style.display='flex';
-            
+            btn.querySelector('.feide-loader').style.display='none'; btn.querySelector('.feide-success').style.display='flex';
             setTimeout(() => {
-                state.username = userData.username;
-                state.password = userData.password; // Store locall too to re-save
+                state.username = userData.username; state.password = userData.password;
                 state.balance = userData.balance !== undefined ? userData.balance : 0;
                 state.inventory = userData.inventory ? JSON.parse(userData.inventory) : [];
                 state.hasClaimedBonus = userData.hasClaimedBonus;
                 state.isLoggedIn = true;
-                
-                // Show bonus modal if brand new (simulated via local state check mostly, but if forced from gun data)
-                // If creating new user, we set balance 500 directly.
-                // We'll just show the modal if it was a fresh creation visual
-                if(state.balance === 500 && state.inventory.length === 0) {
-                     setTimeout(() => openModal('bonus-modal'), 500);
-                }
-
-                saveState();
-                closeModal('login-modal');
-                showDashboard();
+                if(state.balance === 500 && state.inventory.length === 0) setTimeout(() => openModal('bonus-modal'), 500);
+                saveState(); closeModal('login-modal'); showDashboard();
             }, 800);
         }
 
-        function logout() { 
-            state.isLoggedIn = false; 
-            localStorage.removeItem('vg_gambling_data_v6'); 
-            location.reload(); 
-        }
-        
-        function resetData() { 
-            if(confirm("Dette sletter kun lokal info. Brukeren din på nettverket består.")) {
-                logout();
-            }
-        }
+        function logout() { state.isLoggedIn = false; localStorage.removeItem('vg_gambling_data_v6'); location.reload(); }
+        function resetData() { if(confirm("Sletter lokal info.")) logout(); }
         
         function processFunds() {
             const amount = parseInt(document.getElementById('fund-amount').value);
             if(!amount || amount <= 0) return alert("Ugyldig beløp");
-            const btn = document.getElementById('fund-btn');
-            btn.innerHTML = `<i data-lucide="loader-2" class="animate-spin"></i> Sender...`;
-            lucide.createIcons();
-            setTimeout(() => {
-                state.balance += amount;
-                saveState();
-                closeModal('add-funds-modal');
-                SoundEngine.play('coin');
-                btn.innerHTML = `<span id="fund-text">Send Faktura</span>`;
-                alert(`Faktura på ${amount} kr sendt til skolen. (Beløp lagt til).`);
-            }, 1500);
+            const btn = document.getElementById('fund-btn'); btn.innerHTML = `<i data-lucide="loader-2" class="animate-spin"></i> Sender...`; lucide.createIcons();
+            setTimeout(() => { state.balance += amount; saveState(); closeModal('add-funds-modal'); SoundEngine.play('coin'); btn.innerHTML = `<span id="fund-text">Send Faktura</span>`; alert(`Faktura på ${amount} kr sendt.`); }, 1500);
         }
-
-        // --- CLAIM PRIZES FIX ---
         function claimPrizes() {
-            const school = document.getElementById('claim-school').value;
-            if(!school) return alert("Skriv inn navnet på skolen!");
-            
-            if(state.inventory.length === 0) {
-                return alert("Sekken din er tom! Du har ingenting å sende.");
-            }
-
-            const itemCount = state.inventory.length;
-            state.inventory = [];
-            saveState();
-            
-            SoundEngine.play('win');
-            alert(`Suksess! ${itemCount} premier er pakket og sendt til ${school}.`);
-            closeModal('claim-prize-modal');
-            document.getElementById('claim-school').value = ''; 
+            if(state.inventory.length === 0) return alert("Sekken er tom!");
+            state.inventory = []; saveState(); SoundEngine.play('win'); alert(`Suksess! Premier sendt.`); closeModal('claim-prize-modal');
         }
 
-        // --- LOBBY SYSTEM ---
-        function openLobby() {
-            openModal('lobby-modal');
-            listPublicRooms();
-        }
+        // --- LOBBY SYSTEM (FIXED) ---
+        function openLobby() { openModal('lobby-modal'); listPublicRooms(); }
         function switchTab(tab) {
-            if(tab === 'list') {
-                document.getElementById('view-list').classList.remove('hidden');
-                document.getElementById('view-host').classList.add('hidden');
-                document.getElementById('tab-list').className = "flex-1 py-3 text-sm font-bold text-blue-400 border-b-2 border-blue-400 bg-slate-800";
-                document.getElementById('tab-host').className = "flex-1 py-3 text-sm font-bold text-slate-400 hover:text-slate-200";
-                listPublicRooms();
-            } else {
-                document.getElementById('view-list').classList.add('hidden');
-                document.getElementById('view-host').classList.remove('hidden');
-                document.getElementById('tab-list').className = "flex-1 py-3 text-sm font-bold text-slate-400 hover:text-slate-200";
-                document.getElementById('tab-host').className = "flex-1 py-3 text-sm font-bold text-blue-400 border-b-2 border-blue-400 bg-slate-800";
-            }
+            if(tab === 'list') { document.getElementById('view-list').classList.remove('hidden'); document.getElementById('view-host').classList.add('hidden'); document.getElementById('tab-list').className = "flex-1 py-3 text-sm font-bold text-blue-400 border-b-2 border-blue-400 bg-slate-800"; document.getElementById('tab-host').className = "flex-1 py-3 text-sm font-bold text-slate-400 hover:text-slate-200"; listPublicRooms(); } 
+            else { document.getElementById('view-list').classList.add('hidden'); document.getElementById('view-host').classList.remove('hidden'); document.getElementById('tab-list').className = "flex-1 py-3 text-sm font-bold text-slate-400 hover:text-slate-200"; document.getElementById('tab-host').className = "flex-1 py-3 text-sm font-bold text-blue-400 border-b-2 border-blue-400 bg-slate-800"; }
         }
 
         function createPublicRoom() {
             const name = document.getElementById('host-name').value || "Ukjent Rom";
             const game = document.getElementById('host-game').value;
             const bet = parseInt(document.getElementById('host-bet').value) || 100;
-            
             const roomId = "PUB_" + Math.random().toString(36).substr(2, 6).toUpperCase();
-            
-            // Initial Room Data
             if(appScope) {
                 appScope.get('public_rooms').get(roomId).put({
-                    id: roomId,
-                    name: name,
-                    game: game,
-                    bet: bet,
-                    host: state.username,
-                    players: 0,
-                    lastActive: Date.now()
+                    id: roomId, name: name, game: game, bet: bet,
+                    host: state.username, players: 0, lastActive: Date.now()
                 });
             }
-
-            // Auto-join
-            document.getElementById('pvp-room-code').value = roomId;
-            document.getElementById('pvp-bet').value = bet;
-            
-            closeModal('lobby-modal');
-            
-            // Trigger join logic
-            setTimeout(() => {
-                pvpGameType = game; // Set global
-                joinPvPRoom(true); // true = bypass bet check visual (handled inside)
-            }, 500);
+            document.getElementById('pvp-room-code').value = roomId; document.getElementById('pvp-bet').value = bet;
+            closeModal('lobby-modal'); setTimeout(() => { pvpGameType = game; joinPvPRoom(true); }, 500);
         }
 
         function listPublicRooms() {
             const container = document.getElementById('rooms-container');
             container.innerHTML = "";
-            let found = false;
-            
             if(!appScope) return;
+            // Changed from .once() to .on() for live updates
+            appScope.get('public_rooms').map().on((data, id) => {
+                if(!data || !data.id || (Date.now() - data.lastActive > 300000)) return;
+                // Avoid dupes
+                const existing = document.getElementById(`room-${id}`);
+                if(existing) existing.remove();
 
-            appScope.get('public_rooms').map().once((data, id) => {
-                if(!data || !data.id) return;
-                
-                // Cleanup: Check if inactive > 5 mins (300000ms)
-                if(Date.now() - data.lastActive > 300000) return;
-
-                found = true;
                 const isFull = data.players >= 2;
                 const gameNames = {rps: "Stein Saks Papir", card: "Høyeste Kort", dice: "Terning-Duell"};
                 
                 const el = document.createElement('div');
+                el.id = `room-${id}`;
                 el.className = `room-item bg-slate-800 border ${isFull ? 'border-red-900 opacity-60' : 'border-slate-700'} p-4 rounded-lg flex justify-between items-center transition-all cursor-pointer`;
                 el.onclick = () => {
                     if(isFull) return alert("Rommet er fullt!");
-                    document.getElementById('pvp-room-code').value = data.id;
-                    document.getElementById('pvp-bet').value = data.bet;
-                    pvpGameType = data.game;
-                    closeModal('lobby-modal');
-                    joinPvPRoom(true);
+                    document.getElementById('pvp-room-code').value = data.id; document.getElementById('pvp-bet').value = data.bet;
+                    pvpGameType = data.game; closeModal('lobby-modal'); joinPvPRoom(true);
                 };
-
-                el.innerHTML = `
-                    <div>
-                        <div class="font-bold text-white">${data.name}</div>
-                        <div class="text-xs text-slate-400">${gameNames[data.game] || data.game} • <span class="text-green-400">${data.bet} kr</span></div>
-                    </div>
-                    <div class="text-right">
-                        <div class="text-xs font-bold ${isFull ? 'text-red-500' : 'text-blue-400'}">${data.players}/2</div>
-                        <div class="text-[10px] text-slate-600">${data.id}</div>
-                    </div>
-                `;
+                el.innerHTML = `<div><div class="font-bold text-white">${data.name}</div><div class="text-xs text-slate-400">${gameNames[data.game] || data.game} • <span class="text-green-400">${data.bet} kr</span></div></div><div class="text-right"><div class="text-xs font-bold ${isFull ? 'text-red-500' : 'text-blue-400'}">${data.players}/2</div><div class="text-[10px] text-slate-600">${data.id}</div></div>`;
                 container.appendChild(el);
             });
-            
-            // Fallback text if Gun is slow or empty (visual only)
-            setTimeout(() => {
-                if(container.innerHTML === "") container.innerHTML = `<div class="text-center text-slate-500 text-sm">Ingen åpne rom funnet. Lag et selv!</div>`;
-            }, 1000);
         }
 
         // --- PVP LOGIC ---
-        let pvpRoom = null;
-        let pvpGameType = ''; // 'rps', 'card', 'dice'
-        let pvpBet = 0;
-        let pvpSub = null;
-        let playerNum = 0; // 1 or 2
-        let currentRoomId = null;
+        let pvpRoom = null, pvpGameType = '', pvpBet = 0, playerNum = 0, currentRoomId = null;
 
-        function openPvPSetup(type) {
-            pvpGameType = type;
-            document.getElementById('pvp-title').innerText = type === 'dice' ? 'Terning-Duell' : (type === 'rps' ? 'Stein Saks Papir' : 'Høyeste Kort');
-            openModal('pvp-setup-modal');
-        }
+        function openPvPSetup(type) { pvpGameType = type; document.getElementById('pvp-title').innerText = type === 'dice' ? 'Terning-Duell' : (type === 'rps' ? 'Stein Saks Papir' : 'Høyeste Kort'); openModal('pvp-setup-modal'); }
         function openLobbyFromSetup() { closeModal('pvp-setup-modal'); openLobby(); }
         function togglePrivateSetup() { document.getElementById('private-setup-form').classList.toggle('hidden'); }
 
-        function joinPvPRoom(fromLobby = false) {
+        function joinPvPRoom() {
             const code = document.getElementById('pvp-room-code').value.trim().toUpperCase();
             const bet = parseInt(document.getElementById('pvp-bet').value);
-            
             if(!code) return alert("Mangler rom-kode!");
             if(state.balance < bet) return alert("Du har ikke nok penger!");
-            if(!appScope) return alert("PvP er deaktivert (Gun.js blokkert).");
+            
+            state.balance -= bet; saveState(); pvpBet = bet; currentRoomId = code;
 
-            // Deduct bet
-            state.balance -= bet;
-            saveState();
-            pvpBet = bet;
-            currentRoomId = code;
-
-            // Check if Public Room node exists to update player count
             if(code.startsWith('PUB_')) {
                  const pubNode = appScope.get('public_rooms').get(code);
-                 pubNode.once(d => {
-                     if(d && d.players < 2) {
-                         pubNode.get('players').put(d.players + 1);
-                         pubNode.get('lastActive').put(Date.now()); // heartbeat on join
-                     }
-                 });
-                 // Start heartbeat loop
-                 setInterval(() => {
-                     appScope.get('public_rooms').get(code).get('lastActive').put(Date.now());
-                 }, 60000);
+                 pubNode.once(d => { if(d && d.players < 2) { pubNode.get('players').put(d.players + 1); pubNode.get('lastActive').put(Date.now()); } });
+                 setInterval(() => { appScope.get('public_rooms').get(code).get('lastActive').put(Date.now()); }, 60000);
             }
 
             pvpRoom = appScope.get('rooms').get(code);
             closeModal('pvp-setup-modal');
             
-            if(pvpGameType === 'rps') {
-                openModal('pvp-rps-modal');
-                document.getElementById('rps-room-display').innerText = code;
-                document.getElementById('rps-pot').innerText = bet * 2;
-                initRPSGame();
-            } else if (pvpGameType === 'card') {
-                openModal('pvp-card-modal');
-                document.getElementById('card-room-display').innerText = code;
-                document.getElementById('card-pot').innerText = bet * 2;
-                initCardGame();
-            } else if (pvpGameType === 'dice') {
-                openModal('pvp-dice-modal');
-                document.getElementById('dice-room-display').innerText = code;
-                document.getElementById('dice-pot').innerText = bet * 2;
-                initDiceGame();
-            }
+            if(pvpGameType === 'rps') { openModal('pvp-rps-modal'); document.getElementById('rps-room-display').innerText = code; document.getElementById('rps-pot').innerText = bet * 2; initRPSGame(); } 
+            else if (pvpGameType === 'card') { openModal('pvp-card-modal'); document.getElementById('card-room-display').innerText = code; document.getElementById('card-pot').innerText = bet * 2; initCardGame(); } 
+            else if (pvpGameType === 'dice') { openModal('pvp-dice-modal'); document.getElementById('dice-room-display').innerText = code; document.getElementById('dice-pot').innerText = bet * 2; initDiceGame(); }
         }
 
         function leavePvP() {
-            // Decrement player count if public
             if(currentRoomId && currentRoomId.startsWith('PUB_') && appScope) {
                 const n = appScope.get('public_rooms').get(currentRoomId);
                 n.once(d => { if(d && d.players > 0) n.get('players').put(d.players - 1); });
             }
-            alert("Du forlot kampen. Innsatsen er tapt.");
-            location.reload(); 
+            alert("Du forlot kampen. Innsatsen er tapt."); location.reload(); 
         }
 
         // --- GAME: RPS ---
         function initRPSGame() {
             const rpsNode = pvpRoom.get('rps_round_' + Math.floor(Date.now() / 600000));
-            rpsNode.get('p1').once((d) => {
-                if(!d || (Date.now() - d.ts > 10000)) { playerNum = 1; rpsNode.get('p1').put({id: myId, ts: Date.now(), move: false}); document.getElementById('rps-status').innerText = "Venter på motstander..."; } 
-                else if (d.id !== myId) { playerNum = 2; rpsNode.get('p2').put({id: myId, ts: Date.now(), move: false}); document.getElementById('rps-status').innerText = "Spiller 2 tilkoblet!"; } 
-                else playerNum = 1;
-            });
-            pvpSub = rpsNode.on((data) => {
+            rpsNode.get('p1').once((d) => { if(!d || (Date.now() - d.ts > 10000)) { playerNum = 1; rpsNode.get('p1').put({id: myId, ts: Date.now(), move: false}); document.getElementById('rps-status').innerText = "Venter på motstander..."; } else if (d.id !== myId) { playerNum = 2; rpsNode.get('p2').put({id: myId, ts: Date.now(), move: false}); document.getElementById('rps-status').innerText = "Spiller 2 tilkoblet!"; } else playerNum = 1; });
+            rpsNode.on((data) => {
                 if(!data || !data.p1 || !data.p2) return;
                 const myMove = playerNum === 1 ? data.p1.move : data.p2.move;
                 const opMove = playerNum === 1 ? data.p2.move : data.p1.move;
-
                 if(!myMove && !opMove) { document.getElementById('rps-status').innerText = "Velg ditt trekk!"; document.getElementById('rps-controls').classList.remove('hidden'); document.getElementById('rps-result-area').classList.add('hidden'); } 
                 else if (myMove && !opMove) { document.getElementById('rps-status').innerText = "Venter på motstander..."; document.getElementById('rps-controls').classList.add('hidden'); }
                 else if (myMove && opMove) { resolveRPS(myMove, opMove); }
@@ -1030,11 +808,7 @@
         // --- GAME: HIGH CARD ---
         function initCardGame() {
             const node = pvpRoom.get('card_round_' + Math.floor(Date.now() / 600000));
-            node.get('p1').once((d) => {
-                if(!d || (Date.now() - d.ts > 10000)) { playerNum = 1; node.get('p1').put({id: myId, ts: Date.now(), card: 0}); document.getElementById('card-status').innerText = "Venter på motstander..."; } 
-                else if (d.id !== myId) { playerNum = 2; node.get('p2').put({id: myId, ts: Date.now(), card: 0}); document.getElementById('card-status').innerText = "Spiller 2 tilkoblet!"; } 
-                else playerNum = 1;
-            });
+            node.get('p1').once((d) => { if(!d || (Date.now() - d.ts > 10000)) { playerNum = 1; node.get('p1').put({id: myId, ts: Date.now(), card: 0}); document.getElementById('card-status').innerText = "Venter på motstander..."; } else if (d.id !== myId) { playerNum = 2; node.get('p2').put({id: myId, ts: Date.now(), card: 0}); document.getElementById('card-status').innerText = "Spiller 2 tilkoblet!"; } else playerNum = 1; });
             node.on((data) => {
                 if(!data || !data.p1 || !data.p2) return;
                 const myCard = playerNum === 1 ? data.p1.card : data.p2.card;
@@ -1061,16 +835,11 @@
         // --- GAME: DICE DUEL ---
         function initDiceGame() {
             const node = pvpRoom.get('dice_round_' + Math.floor(Date.now() / 600000));
-            node.get('p1').once((d) => {
-                if(!d || (Date.now() - d.ts > 10000)) { playerNum = 1; node.get('p1').put({id: myId, ts: Date.now(), val: 0, rolls: "0,0,0"}); document.getElementById('dice-status').innerText = "Venter på motstander..."; }
-                else if (d.id !== myId) { playerNum = 2; node.get('p2').put({id: myId, ts: Date.now(), val: 0, rolls: "0,0,0"}); document.getElementById('dice-status').innerText = "Spiller 2 tilkoblet!"; }
-                else playerNum = 1;
-            });
+            node.get('p1').once((d) => { if(!d || (Date.now() - d.ts > 10000)) { playerNum = 1; node.get('p1').put({id: myId, ts: Date.now(), val: 0, rolls: "0,0,0"}); document.getElementById('dice-status').innerText = "Venter på motstander..."; } else if (d.id !== myId) { playerNum = 2; node.get('p2').put({id: myId, ts: Date.now(), val: 0, rolls: "0,0,0"}); document.getElementById('dice-status').innerText = "Spiller 2 tilkoblet!"; } else playerNum = 1; });
             node.on((data) => {
                 if(!data || !data.p1 || !data.p2) return;
                 const myD = playerNum === 1 ? data.p1 : data.p2;
                 const opD = playerNum === 1 ? data.p2 : data.p1;
-                
                 if(myD.val === 0 && opD.val === 0) { document.getElementById('dice-controls').classList.remove('hidden'); document.getElementById('dice-result-area').classList.add('hidden'); }
                 else if (myD.val > 0 && opD.val === 0) { document.getElementById('dice-status').innerText = "Venter på motstander..."; document.getElementById('dice-controls').classList.add('hidden'); }
                 else if (myD.val > 0 && opD.val > 0) { resolveDiceGame(myD, opD); }
@@ -1091,26 +860,16 @@
             handlePvPResult(res, 'dice-status');
         }
 
-        // --- SHARED PVP UTILS ---
         function handlePvPResult(result, statusId) {
             const el = document.getElementById(statusId);
             if(document.body.classList.contains('paid_pvp')) return;
-            if(result === 'win') {
-                el.innerText = "DU VANT!"; el.classList.add('text-green-500');
-                state.balance += (pvpBet * 2); SoundEngine.play('win');
-            } else if (result === 'lose') {
-                el.innerText = "DU TAPTE..."; el.classList.add('text-red-500');
-                SoundEngine.play('loss');
-            } else {
-                el.innerText = "UAVGJORT! Pengene tilbake.";
-                state.balance += pvpBet;
-            }
-            saveState();
-            document.body.classList.add('paid_pvp');
-            setTimeout(() => document.body.classList.remove('paid_pvp'), 5000);
+            if(result === 'win') { el.innerText = "DU VANT!"; el.classList.add('text-green-500'); state.balance += (pvpBet * 2); SoundEngine.play('win'); } 
+            else if (result === 'lose') { el.innerText = "DU TAPTE..."; el.classList.add('text-red-500'); SoundEngine.play('loss'); } 
+            else { el.innerText = "UAVGJORT! Pengene tilbake."; state.balance += pvpBet; }
+            saveState(); document.body.classList.add('paid_pvp'); setTimeout(() => document.body.classList.remove('paid_pvp'), 5000);
         }
 
-        // --- SOLO GAMES (Fixed Slots) ---
+        // --- SOLO GAMES ---
         const wheelPrizes = [{n:"Energidrikk",i:"cup-soda"},{n:"MacBook Air",i:"laptop"},{n:"Gammelt Eple",i:"apple"},{n:"Penn & Papir",i:"pencil"},{n:"Akademiet Sekk",i:"backpack"},{n:"Energidrikk",i:"cup-soda"},{n:"Headset",i:"headphones"},{n:"Penn",i:"pencil"}];
         function generateWheelIcons() {
             const s = document.getElementById('wheel-spinner');
@@ -1118,207 +877,49 @@
         }
         function spinWheel() {
             if(state.balance<100) return alert('Tomt for penger'); state.balance-=100; saveState();
-            const s = document.getElementById('wheel-spinner');
-            const rot = 1800 + Math.floor(Math.random()*360);
+            const s = document.getElementById('wheel-spinner'); const rot = 1800 + Math.floor(Math.random()*360);
             s.style.transform=`rotate(-${rot}deg)`; SoundEngine.play('spin');
-            setTimeout(()=>{
-                const idx = Math.floor((rot%360)/45); const p = wheelPrizes[idx];
-                document.getElementById('win-message').innerText = p.n === "MacBook Air" ? "DU VANT MACBOOK!" : `Du vant: ${p.n}`;
-                openModal('win-modal'); state.inventory.push({name:p.n, icon: `<i data-lucide="${p.i}"></i>`}); saveState(); SoundEngine.play('win');
-            }, 5000);
+            setTimeout(()=>{ const idx = Math.floor((rot%360)/45); const p = wheelPrizes[idx]; document.getElementById('win-message').innerText = p.n === "MacBook Air" ? "DU VANT MACBOOK!" : `Du vant: ${p.n}`; openModal('win-modal'); state.inventory.push({name:p.n, icon: `<i data-lucide="${p.i}"></i>`}); saveState(); SoundEngine.play('win'); }, 5000);
         }
-
-        // Improved Slots Logic
         function spinSlots() {
-            if(state.balance < 50) return alert("Mangler penger");
-            state.balance -= 50; 
-            saveState();
-
-            const reels = [1,2,3].map(i => document.getElementById(`reel-${i}`));
-            const icons = ['cherry', 'gem', 'bell', 'grape', 'clover'];
-            
-            // Add Blur
-            reels.forEach(r => r.classList.add('slot-spinning'));
-            SoundEngine.play('spin');
-
-            let finalRes = [];
-
-            // Reel 1 stop
-            setTimeout(() => {
-                reels[0].classList.remove('slot-spinning');
-                const r1 = icons[Math.floor(Math.random() * icons.length)];
-                finalRes.push(r1);
-                reels[0].innerHTML = `<i data-lucide="${r1}"></i>`;
-                lucide.createIcons();
-                SoundEngine.play('click');
-
-                // Reel 2 stop
-                setTimeout(() => {
-                    reels[1].classList.remove('slot-spinning');
-                    const r2 = icons[Math.floor(Math.random() * icons.length)];
-                    finalRes.push(r2);
-                    reels[1].innerHTML = `<i data-lucide="${r2}"></i>`;
-                    lucide.createIcons();
-                    SoundEngine.play('click');
-
-                    // Reel 3 stop
-                    setTimeout(() => {
-                        reels[2].classList.remove('slot-spinning');
-                        const r3 = icons[Math.floor(Math.random() * icons.length)];
-                        finalRes.push(r3);
-                        reels[2].innerHTML = `<i data-lucide="${r3}"></i>`;
-                        lucide.createIcons();
-                        SoundEngine.play('click');
-
-                        // Check Win
-                        if(r1 === r2 && r2 === r3) {
-                            setTimeout(() => {
-                                SoundEngine.play('win');
-                                document.getElementById('win-message').innerText = "JACKPOT! 1000kr!";
-                                state.balance += 1000;
-                                saveState();
-                                openModal('win-modal');
-                            }, 300);
-                        } else if (r1 === r2 || r2 === r3 || r1 === r3) {
-                            setTimeout(() => {
-                                SoundEngine.play('coin'); // Small win
-                                state.balance += 50; // Money back
-                                saveState();
-                                // Optional visual for small win
-                            }, 300);
-                        }
-
-                    }, 500);
-                }, 500);
-            }, 1000);
+            if(state.balance < 50) return alert("Mangler penger"); state.balance -= 50; saveState();
+            const reels = [1,2,3].map(i => document.getElementById(`reel-${i}`)); const icons = ['cherry', 'gem', 'bell', 'grape', 'clover'];
+            reels.forEach(r => r.classList.add('slot-spinning')); SoundEngine.play('spin'); let finalRes = [];
+            setTimeout(() => { reels[0].classList.remove('slot-spinning'); const r1 = icons[Math.floor(Math.random() * icons.length)]; finalRes.push(r1); reels[0].innerHTML = `<i data-lucide="${r1}"></i>`; lucide.createIcons(); SoundEngine.play('click');
+                setTimeout(() => { reels[1].classList.remove('slot-spinning'); const r2 = icons[Math.floor(Math.random() * icons.length)]; finalRes.push(r2); reels[1].innerHTML = `<i data-lucide="${r2}"></i>`; lucide.createIcons(); SoundEngine.play('click');
+                    setTimeout(() => { reels[2].classList.remove('slot-spinning'); const r3 = icons[Math.floor(Math.random() * icons.length)]; finalRes.push(r3); reels[2].innerHTML = `<i data-lucide="${r3}"></i>`; lucide.createIcons(); SoundEngine.play('click');
+                        if(r1 === r2 && r2 === r3) { setTimeout(() => { SoundEngine.play('win'); document.getElementById('win-message').innerText = "JACKPOT! 1000kr!"; state.balance += 1000; saveState(); openModal('win-modal'); }, 300); } 
+                        else if (r1 === r2 || r2 === r3 || r1 === r3) { setTimeout(() => { SoundEngine.play('coin'); state.balance += 50; saveState(); }, 300); }
+                    }, 500); }, 500); }, 1000);
         }
 
-        // Mines logic
+        // Mines (FIXED BUG)
         let minesActive=false; let minesM=1.0; let minesG=[];
-        function initMines() {
-            document.getElementById('mines-grid').innerHTML = Array(25).fill(0).map((_,i)=>`<div id="mine-${i}" class="w-full h-10 bg-slate-700 rounded cursor-pointer hover:bg-slate-600 border border-slate-600" onclick="clickMine(${i})"></div>`).join('');
-        }
+        function initMines() { document.getElementById('mines-grid').innerHTML = Array(25).fill(0).map((_,i)=>`<div id="mine-${i}" class="w-full h-10 bg-slate-700 rounded cursor-pointer hover:bg-slate-600 border border-slate-600" onclick="clickMine(${i})"></div>`).join(''); }
         function startMines(){
             if(state.balance<50) return alert("Tomt"); state.balance-=50; saveState(); minesActive=true; minesM=1.0; minesG=Array(25).fill(0);
-            let p=0; while(p<5){ let x=Math.floor(Math.random()*25); if(minesG[x]===0){minesG[x]=1; p++;}}
-            initMines();
+            let p=0; while(p<5){ let x=Math.floor(Math.random()*25); if(minesG[x]===0){minesG[x]=1; p++;}} initMines();
         }
         function clickMine(i){
             if(!minesActive)return; const el=document.getElementById(`mine-${i}`);
+            // Fix: Check if already clicked
+            if(el.getAttribute('data-clicked') === 'true') return;
+            el.setAttribute('data-clicked', 'true');
+
             if(minesG[i]===1) { el.classList.add('bg-red-500'); SoundEngine.play('loss'); minesActive=false; alert('BOOM'); }
             else { el.classList.add('bg-green-500'); minesM+=0.2; document.getElementById('mines-next-reward').innerText=minesM.toFixed(1)+'x'; SoundEngine.play('coin'); document.getElementById('mines-cashout').disabled=false; document.getElementById('mines-cashout').classList.remove('opacity-50'); }
         }
         function cashoutMines(){ if(!minesActive)return; state.balance+=Math.floor(50*minesM); saveState(); minesActive=false; alert('Gevinst!'); initMines(); document.getElementById('mines-cashout').disabled=true; document.getElementById('mines-cashout').classList.add('opacity-50'); }
         
-        // --- BLACKJACK LOGIC ---
+        // Blackjack
         let bjDeck = [], bjPlayerHand = [], bjDealerHand = [], bjActive = false;
-
-        function getCard() {
-            const vals = ['2','3','4','5','6','7','8','9','10','J','Q','K','A'];
-            const suits = ['♠','♥','♦','♣'];
-            const val = vals[Math.floor(Math.random()*vals.length)];
-            const suit = suits[Math.floor(Math.random()*suits.length)];
-            let num = parseInt(val);
-            if(['J','Q','K'].includes(val)) num = 10;
-            if(val === 'A') num = 11;
-            return { val, suit, num, color: (suit === '♥' || suit === '♦') ? 'text-red-500' : 'text-black' };
-        }
-
-        function drawCardUI(card, containerId) {
-            const el = document.createElement('div');
-            el.className = `w-16 h-24 bg-white rounded flex flex-col items-center justify-center font-bold border-2 border-gray-300 ${card.color}`;
-            let suitIcon = '';
-            if(card.suit === '♥') suitIcon = '<i data-lucide="heart" class="w-4 h-4 fill-red-500"></i>';
-            else if(card.suit === '♦') suitIcon = '<i data-lucide="diamond" class="w-4 h-4 fill-red-500"></i>';
-            else if(card.suit === '♠') suitIcon = '<i data-lucide="spade" class="w-4 h-4 fill-black"></i>';
-            else if(card.suit === '♣') suitIcon = '<i data-lucide="club" class="w-4 h-4 fill-black"></i>';
-            
-            el.innerHTML = `<span>${card.val}</span><div class="mt-1">${suitIcon}</div>`;
-            document.getElementById(containerId).appendChild(el);
-            lucide.createIcons();
-        }
-
-        function calcHand(hand) {
-            let sum = hand.reduce((a,b) => a + b.num, 0);
-            let aces = hand.filter(c => c.val === 'A').length;
-            while(sum > 21 && aces > 0) { sum -= 10; aces--; }
-            return sum;
-        }
-
-        function startBlackjack() {
-            if(state.balance < 100) return alert("Tom for penger");
-            state.balance -= 100;
-            saveState();
-            
-            // Reset UI
-            document.getElementById('bj-dealer-cards').innerHTML = '';
-            document.getElementById('bj-player-cards').innerHTML = '';
-            document.getElementById('bj-message').innerText = '';
-            
-            bjPlayerHand = [getCard(), getCard()];
-            bjDealerHand = [getCard()]; 
-            
-            bjPlayerHand.forEach(c => drawCardUI(c, 'bj-player-cards'));
-            bjDealerHand.forEach(c => drawCardUI(c, 'bj-dealer-cards'));
-            
-            document.getElementById('bj-controls').classList.add('hidden');
-            document.getElementById('bj-actions').classList.remove('hidden');
-            bjActive = true;
-            
-            if(calcHand(bjPlayerHand) === 21) bjStand(); 
-        }
-
-        function bjHit() {
-            if(!bjActive) return;
-            const card = getCard();
-            bjPlayerHand.push(card);
-            drawCardUI(card, 'bj-player-cards');
-            if(calcHand(bjPlayerHand) > 21) {
-                bjActive = false;
-                document.getElementById('bj-message').innerText = "BUST! (Over 21)";
-                document.getElementById('bj-actions').classList.add('hidden');
-                document.getElementById('bj-controls').classList.remove('hidden');
-                SoundEngine.play('loss');
-            }
-        }
-
-        function bjStand() {
-            if(!bjActive) return;
-            bjActive = false;
-            while(calcHand(bjDealerHand) < 17) {
-                const c = getCard();
-                bjDealerHand.push(c);
-                drawCardUI(c, 'bj-dealer-cards');
-            }
-            
-            const pScore = calcHand(bjPlayerHand);
-            const dScore = calcHand(bjDealerHand);
-            
-            let msg = "";
-            let win = 0;
-            
-            if(dScore > 21) { msg = "Dealer Busted! Du vant!"; win = 200; }
-            else if(pScore > dScore) { msg = "Du vant!"; win = 200; }
-            else if(pScore === dScore) { msg = "Uavgjort (Push)"; win = 100; }
-            else { msg = "Huset vant."; }
-            
-            document.getElementById('bj-message').innerText = msg;
-            if(win > 0) { 
-                handleWin(win); 
-                state.balance += win; // Ensure balance updates here if handleWin doesn't
-                saveState();
-            } else { 
-                SoundEngine.play('loss'); 
-            }
-            
-            document.getElementById('bj-actions').classList.add('hidden');
-            document.getElementById('bj-controls').classList.remove('hidden');
-        }
-
-        function handleWin(amount) {
-             SoundEngine.play('win');
-             // Logic to show modal if desired, or just sound
-        }
+        function getCard() { const vals = ['2','3','4','5','6','7','8','9','10','J','Q','K','A']; const suits = ['♠','♥','♦','♣']; const val = vals[Math.floor(Math.random()*vals.length)]; const suit = suits[Math.floor(Math.random()*suits.length)]; let num = parseInt(val); if(['J','Q','K'].includes(val)) num = 10; if(val === 'A') num = 11; return { val, suit, num, color: (suit === '♥' || suit === '♦') ? 'text-red-500' : 'text-black' }; }
+        function drawCardUI(card, containerId) { const el = document.createElement('div'); el.className = `w-16 h-24 bg-white rounded flex flex-col items-center justify-center font-bold border-2 border-gray-300 ${card.color}`; let suitIcon = ''; if(card.suit === '♥') suitIcon = '<i data-lucide="heart" class="w-4 h-4 fill-red-500"></i>'; else if(card.suit === '♦') suitIcon = '<i data-lucide="diamond" class="w-4 h-4 fill-red-500"></i>'; else if(card.suit === '♠') suitIcon = '<i data-lucide="spade" class="w-4 h-4 fill-black"></i>'; else if(card.suit === '♣') suitIcon = '<i data-lucide="club" class="w-4 h-4 fill-black"></i>'; el.innerHTML = `<span>${card.val}</span><div class="mt-1">${suitIcon}</div>`; document.getElementById(containerId).appendChild(el); lucide.createIcons(); }
+        function calcHand(hand) { let sum = hand.reduce((a,b) => a + b.num, 0); let aces = hand.filter(c => c.val === 'A').length; while(sum > 21 && aces > 0) { sum -= 10; aces--; } return sum; }
+        function startBlackjack() { if(state.balance < 100) return alert("Tom for penger"); state.balance -= 100; saveState(); document.getElementById('bj-dealer-cards').innerHTML = ''; document.getElementById('bj-player-cards').innerHTML = ''; document.getElementById('bj-message').innerText = ''; bjPlayerHand = [getCard(), getCard()]; bjDealerHand = [getCard()]; bjPlayerHand.forEach(c => drawCardUI(c, 'bj-player-cards')); bjDealerHand.forEach(c => drawCardUI(c, 'bj-dealer-cards')); document.getElementById('bj-controls').classList.add('hidden'); document.getElementById('bj-actions').classList.remove('hidden'); bjActive = true; if(calcHand(bjPlayerHand) === 21) bjStand(); }
+        function bjHit() { if(!bjActive) return; const card = getCard(); bjPlayerHand.push(card); drawCardUI(card, 'bj-player-cards'); if(calcHand(bjPlayerHand) > 21) { bjActive = false; document.getElementById('bj-message').innerText = "BUST! (Over 21)"; document.getElementById('bj-actions').classList.add('hidden'); document.getElementById('bj-controls').classList.remove('hidden'); SoundEngine.play('loss'); } }
+        function bjStand() { if(!bjActive) return; bjActive = false; while(calcHand(bjDealerHand) < 17) { const c = getCard(); bjDealerHand.push(c); drawCardUI(c, 'bj-dealer-cards'); } const pScore = calcHand(bjPlayerHand); const dScore = calcHand(bjDealerHand); let msg = ""; let win = 0; if(dScore > 21) { msg = "Dealer Busted! Du vant!"; win = 200; } else if(pScore > dScore) { msg = "Du vant!"; win = 200; } else if(pScore === dScore) { msg = "Uavgjort (Push)"; win = 100; } else { msg = "Huset vant."; } document.getElementById('bj-message').innerText = msg; if(win > 0) { handleWin(win); state.balance += win; saveState(); } else { SoundEngine.play('loss'); } document.getElementById('bj-actions').classList.add('hidden'); document.getElementById('bj-controls').classList.remove('hidden'); }
+        function handleWin(amount) { SoundEngine.play('win'); }
     </script>
 </body>
 </html>
