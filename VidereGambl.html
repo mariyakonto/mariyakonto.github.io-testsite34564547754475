@@ -547,64 +547,48 @@
         // --- GLOBAL STATE ---
         let state = { username: '', balance: 0, inventory: [], isLoggedIn: false, hasClaimedBonus: false };
         
-        // --- GUN SETUP (Fix for Multiplayer) ---
-        // Using multiple redundant peers to ensure connection
+        // --- GUN SETUP (NUCLEAR OPTION) ---
         let gun, appScope;
-        
-        // Define peer list
+        // Massive list of public peers to try
         const peers = [
-            'https://peer.wallie.io/gun', 
             'https://gun-manhattan.herokuapp.com/gun',
+            'https://gun-us.herokuapp.com/gun',
             'https://gun-eu.herokuapp.com/gun',
-            'https://plankton-app-6qfp3.ondigitalocean.app/gun'
+            'https://gun-rs.iris.to/gun',
+            'https://gundb-relay-ml.herokuapp.com/gun'
         ];
 
         function initGun() {
             try {
-                gun = Gun(peers);
-                appScope = gun.get('videregaende-gambling-pvp-v7-final'); 
+                // Initialize with list
+                gun = Gun({ peers: peers, localStorage: false }); // Disable local storage sync to force network
+                appScope = gun.get('videregaende-gambling-pvp-v8-mega'); 
                 
-                // Connection monitor
+                // Aggressive Reconnect Logic
                 let isConnected = false;
+                const statusText = document.getElementById('conn-text');
+                const statusDot = document.getElementById('conn-dot');
                 
-                // Timeout to set red if no connection
-                setTimeout(() => {
-                    if(!isConnected) {
-                        const d = document.getElementById('conn-dot');
-                        const t = document.getElementById('conn-text');
-                        if(d && t) {
-                            d.className = 'conn-dot bg-red-500';
-                            t.innerText = "Tilkobling feilet (Brannmur?)";
-                        }
-                    }
-                }, 5000);
-
-                gun.on('hi', () => { 
+                // Hook into Gun's internal opt.peers to see what's happening
+                gun.on('hi', (peer) => {
                     isConnected = true;
-                    const d = document.getElementById('conn-dot');
-                    const t = document.getElementById('conn-text');
-                    if(d && t) {
-                        d.className = 'conn-dot bg-green-500';
-                        t.innerText = "Tilkoblet";
-                    }
+                    statusDot.className = 'conn-dot bg-green-500';
+                    statusText.innerText = "Tilkoblet: " + (peer.url || "Server");
                 });
+                
                 gun.on('bye', () => {
                     isConnected = false;
-                    const d = document.getElementById('conn-dot');
-                    const t = document.getElementById('conn-text');
-                    if(d && t) {
-                        d.className = 'conn-dot bg-red-500';
-                        t.innerText = "Mistet tilkobling";
-                    }
+                    statusDot.className = 'conn-dot bg-red-500';
+                    statusText.innerText = "Mistet server. Søker ny...";
                 });
 
             } catch(e) { console.error("GUN Error:", e); }
         }
         
         function retryConnection() {
-            document.getElementById('conn-text').innerText = "Prøver på nytt...";
+            document.getElementById('conn-text').innerText = "Tvinger ny tilkobling...";
             document.getElementById('conn-dot').className = 'conn-dot bg-yellow-500 animate-pulse';
-            initGun();
+            window.location.reload(); // Hard refresh is often best for socket resets
         }
 
         let myId = sessionStorage.getItem('vg_uuid');
@@ -612,7 +596,7 @@
 
         window.onload = function() {
             lucide.createIcons();
-            initGun(); // Start connection attempt immediately
+            initGun();
 
             // Local fallback check
             const local = localStorage.getItem('vg_gambling_data_v6');
@@ -987,7 +971,7 @@
         function drawCardUI(card, containerId) { const el = document.createElement('div'); el.className = `w-16 h-24 bg-white rounded flex flex-col items-center justify-center font-bold border-2 border-gray-300 ${card.color}`; let suitIcon = ''; if(card.suit === '♥') suitIcon = '<i data-lucide="heart" class="w-4 h-4 fill-red-500"></i>'; else if(card.suit === '♦') suitIcon = '<i data-lucide="diamond" class="w-4 h-4 fill-red-500"></i>'; else if(card.suit === '♠') suitIcon = '<i data-lucide="spade" class="w-4 h-4 fill-black"></i>'; else if(card.suit === '♣') suitIcon = '<i data-lucide="club" class="w-4 h-4 fill-black"></i>'; el.innerHTML = `<span>${card.val}</span><div class="mt-1">${suitIcon}</div>`; document.getElementById(containerId).appendChild(el); lucide.createIcons(); }
         function calcHand(hand) { let sum = hand.reduce((a,b) => a + b.num, 0); let aces = hand.filter(c => c.val === 'A').length; while(sum > 21 && aces > 0) { sum -= 10; aces--; } return sum; }
         function startBlackjack() { if(state.balance < 100) return alert("Tom for penger"); state.balance -= 100; saveState(); document.getElementById('bj-dealer-cards').innerHTML = ''; document.getElementById('bj-player-cards').innerHTML = ''; document.getElementById('bj-message').innerText = ''; bjPlayerHand = [getCard(), getCard()]; bjDealerHand = [getCard()]; bjPlayerHand.forEach(c => drawCardUI(c, 'bj-player-cards')); bjDealerHand.forEach(c => drawCardUI(c, 'bj-dealer-cards')); document.getElementById('bj-controls').classList.add('hidden'); document.getElementById('bj-actions').classList.remove('hidden'); bjActive = true; if(calcHand(bjPlayerHand) === 21) bjStand(); }
-        function bjHit() { if(!bjActive) return; const card = getCard(); bjPlayerHand.push(card); drawCardUI(card, 'bj-player-cards'); if(calcHand(bjPlayerHand) > 21) { bjActive = false; document.getElementById('bj-message').innerText = "BUST! (Over 21)"; document.getElementById('bj-actions').classList.add('hidden'); document.getElementById('bj-controls').classList.remove('hidden'); SoundEngine.play('loss'); } }
+        function bjHit() { if(!bjActive) return; const card = getCard(); bjPlayerHand.push(card); drawCardUI(c, 'bj-player-cards'); if(calcHand(bjPlayerHand) > 21) { bjActive = false; document.getElementById('bj-message').innerText = "BUST! (Over 21)"; document.getElementById('bj-actions').classList.add('hidden'); document.getElementById('bj-controls').classList.remove('hidden'); SoundEngine.play('loss'); } }
         function bjStand() { if(!bjActive) return; bjActive = false; while(calcHand(bjDealerHand) < 17) { const c = getCard(); bjDealerHand.push(c); drawCardUI(c, 'bj-dealer-cards'); } const pScore = calcHand(bjPlayerHand); const dScore = calcHand(bjDealerHand); let msg = ""; let win = 0; if(dScore > 21) { msg = "Dealer Busted! Du vant!"; win = 200; } else if(pScore > dScore) { msg = "Du vant!"; win = 200; } else if(pScore === dScore) { msg = "Uavgjort (Push)"; win = 100; } else { msg = "Huset vant."; } document.getElementById('bj-message').innerText = msg; if(win > 0) { handleWin(win); state.balance += win; saveState(); } else { SoundEngine.play('loss'); } document.getElementById('bj-actions').classList.add('hidden'); document.getElementById('bj-controls').classList.remove('hidden'); }
         function handleWin(amount) { SoundEngine.play('win'); }
     </script>
