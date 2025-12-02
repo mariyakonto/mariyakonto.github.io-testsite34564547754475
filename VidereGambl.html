@@ -82,7 +82,7 @@
 
     <!-- Connection Status Indicator -->
     <div class="conn-status text-slate-400 flex items-center">
-        <span id="conn-dot" class="conn-dot bg-red-500"></span> <span id="conn-text">Kobler til multiplayer...</span>
+        <span id="conn-dot" class="conn-dot bg-yellow-500"></span> <span id="conn-text">Kobler til...</span>
     </div>
 
     <!-- LANDING PAGE -->
@@ -549,14 +549,16 @@
         try {
             gun = Gun([
                 'https://gun-manhattan.herokuapp.com/gun',
-                'https://peer.wallie.io/gun', 
-                'https://gun-us.herokuapp.com/gun'
+                'https://gun-eu.herokuapp.com/gun',
+                'https://relay.129.153.59.37.nip.io/gun',
+                'https://plankton-app-6qfp3.ondigitalocean.app/gun'
             ]);
-            appScope = gun.get('videregaende-gambling-pvp-v5-robust'); 
+            appScope = gun.get('videregaende-gambling-pvp-v6-stable'); 
             
             // Connection monitor
             gun.on('hi', () => { 
                 document.getElementById('conn-dot').classList.replace('bg-red-500', 'bg-green-500'); 
+                document.getElementById('conn-dot').classList.replace('bg-yellow-500', 'bg-green-500'); 
                 document.getElementById('conn-text').innerText = "Tilkoblet";
             });
             gun.on('bye', () => {
@@ -912,7 +914,20 @@
                 lucide.createIcons();
                 SoundEngine.play('loss'); 
                 minesActive=false; 
-                setTimeout(() => alert('BOOM! Du fikk anmerkning.'), 100);
+                
+                // --- NEW "GAME OVER" OVERLAY INSTEAD OF ALERT ---
+                const overlay = document.createElement('div');
+                overlay.className = "absolute inset-0 flex items-center justify-center bg-black/80 backdrop-blur-sm z-10 animate-fade-in";
+                overlay.innerHTML = `
+                    <div class="text-center">
+                        <div class="text-5xl font-extrabold text-red-600 mb-2 animate-bounce">BOOM!</div>
+                        <div class="text-white font-bold text-xl">Du fikk anmerkning.</div>
+                        <button onclick="this.closest('.relative').removeChild(this.parentNode.parentNode); initMines();" class="mt-4 bg-slate-700 hover:bg-slate-600 px-6 py-2 rounded text-white font-bold">Prøv igjen</button>
+                    </div>
+                `;
+                // Append to modal content (parent of grid)
+                document.getElementById('mines-grid').parentElement.appendChild(overlay);
+                // ------------------------------------------------
             }
             else { 
                 el.classList.add('bg-green-500'); 
